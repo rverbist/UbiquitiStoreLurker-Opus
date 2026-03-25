@@ -1,0 +1,760 @@
+plan_id: storefront-stock-monitor-opus-20260323
+objective: >
+  Build a .NET 10 ASP.NET minimal web application that monitors storefront
+  product pages for stock availability changes, runs in Docker with SQLite,
+  uses EF Core, Serilog, SignalR, and multiple notification providers.
+focus_area: "dotnet10-docker-sqlite-efcore"
+created_at: "2026-03-23"
+created_by: "GitHub Copilot (gem-researcher)"
+status: completed
+
+tldr: |
+  - .NET 10 shipped GA on 2025-11-11 as LTS (supported through Nov 2028); latest patch is 10.0.5 (2026-03-12).
+  - ASP.NET Core 10 adds built-in Minimal API validation (AddValidation), OpenAPI 3.1, Server-Sent Events, and improved container support.
+  - EF Core 10 GA packages are at 10.0.5; SQLite provider is stable and well-supported; WAL mode is the de-facto default.
+  - Official Docker images are `mcr.microsoft.com/dotnet/aspnet:10.0` and `mcr.microsoft.com/dotnet/sdk:10.0`; Alpine variants available.
+  - DateTimeOffset in SQLite requires a value converter (DateTimeOffsetToBinaryConverter); enums store as integers by default.
+  - SQLite migration locking uses a `__EFMigrationsLock` table (EF9+); auto-migration on startup is viable for single-instance apps.
+  - Non-root container user, volume mounts for /data and /logs, health checks via EF Core DbContext probe — all well-documented patterns.
+
+research_metadata:
+  methodology: >
+    Web search via Tavily for current .NET 10 status, Docker image tags, EF Core
+    SQLite patterns, and containerization best practices. Microsoft Learn docs
+    search for EF Core health checks, SQLite limitations, and value conversions.
+    NuGet package version verification via search results. Cross-referenced
+    multiple sources for accuracy.
+  tools_used:
+    - mcp_io_github_tav_tavily_search
+    - mcp_microsoftdocs_microsoft_docs_search
+    - read_file
+    - list_dir
+  scope: >
+    Broad coverage of .NET 10 runtime status, Docker containerization patterns,
+    SQLite with EF Core data modeling, and containerized development workflows.
+    Five topic areas researched across 6 search queries.
+  confidence: high
+  coverage: 90
+
+findings:
+  - topic: ".NET 10 SDK and Runtime Status"
+    summary: >
+      .NET 10 reached GA on 2025-11-11 as a Long-Term Support (LTS) release,
+      supported through November 2028. The latest patch is 10.0.5 released
+      2026-03-12. It includes C# 14 with the field keyword, extension members,
+      null-conditional assignment, implicit Span conversions, and user-defined
+      checked operators.
+    details: |
+      Release timeline:
+        - Preview 1–7: Feb–Aug 2025
+        - RC1: Sep 2025
+        - RC2: Oct 2025 (go-live license)
+        - GA: Nov 11, 2025
+        - Patch 10.0.1: Dec 9, 2025
+        - Patch 10.0.2: Jan 13, 2026
+        - Patch 10.0.3: Feb 10, 2026
+        - Patch 10.0.4: Mar 10, 2026
+        - Patch 10.0.5: Mar 12, 2026
+
+      Target framework moniker: net10.0
+
+      Visual Studio support: Visual Studio 2026 (Insiders and GA), VS Code with C# Dev Kit.
+
+      SDK version: 10.0.100 (GA), patches track as 10.0.1xx.
+
+      Key breaking changes to be aware of:
+        - `dotnet new sln` uses SLNX format by default
+        - `dotnet --interactive` defaults to true
+        - Restore audits transitive dependencies
+        - Local tool install creates manifest by default
+        - Stricter NuGet validation
+
+      Template commands:
+        - `dotnet new web` — bare-minimum ASP.NET Core app (empty Program.cs with app.MapGet)
+        - `dotnet new webapi` — ASP.NET Core Web API with OpenAPI, sample endpoints, and weather forecast controller/minimal endpoints
+        - For this project, `dotnet new web` is recommended as the starting point since the app uses custom minimal API endpoints and does not need the webapi template scaffolding
+    packages:
+      - "Microsoft.NET.Sdk.Web (implicit via project SDK)"
+    references:
+      - "https://dotnet.microsoft.com/en-us/download/dotnet/10.0"
+      - "https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0"
+      - "https://devnewsletter.com/p/state-of-dot-net-2026/"
+      - "https://github.com/dotnet/core/discussions/10122"
+    recommendations:
+      - "Use `dotnet new web` as the base template for maximum control over the minimal API shape"
+      - "Pin to net10.0 TFM in the csproj; do not use net11.0-preview packages"
+      - "Take advantage of built-in Minimal API validation via AddValidation() for request body and parameter validation"
+    risks:
+      - "Breaking change: SLNX is now the default solution format; some older tooling may not parse it"
+      - "C# 14 features require SDK 10.0.100+; ensure Docker build image is aligned"
+
+  - topic: "ASP.NET Core 10 Features Relevant to This Project"
+    summary: >
+      ASP.NET Core 10 adds built-in validation for Minimal APIs, OpenAPI 3.1
+      document generation by default, Server-Sent Events support, improved
+      container image defaults, and WebApplicationFactory with Kestrel for
+      integration testing.
+    details: |
+      Relevant new features:
+
+      1. Built-in Minimal API Validation:
+         ```csharp
+         builder.Services.AddValidation();
+         ```
+         Automatically validates DataAnnotations on Minimal API parameters
+         (query, header, request body). Replaces the need for manual validation
+         or third-party libraries like FluentValidation for simple cases.
+
+      2. Server-Sent Events (SSE):
+         Built-in ServerSentEvents result type for streaming real-time updates
+         via HTTP. Could complement SignalR for lightweight one-way streaming
+         scenarios (e.g., stock check progress).
+
+      3. OpenAPI 3.1 by Default:
+         YAML serving support, improved document generation. Useful for API
+         documentation of the monitor endpoints.
+
+      4. Improved IProblemDetailsService Integration:
+         Consistent error responses across Minimal APIs. Helps standardize
+         error shape for the frontend.
+
+      5. Container Image Improvements:
+         ASP.NET Core apps listen on port 8080 by default (since .NET 8).
+         Non-root user support is first-class in official images.
+
+      6. Passkey/WebAuthn Support:
+         Not directly needed for this single-user app but available if
+         authentication is added later.
+    packages:
+      - "Microsoft.AspNetCore.OpenApi (included in SDK)"
+    references:
+      - "https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0"
+      - "https://www.telerik.com/blogs/whats-new-apis-net-10-real-improvements"
+      - "https://www.infoq.com/news/2025/11/dotnet-10-release/"
+      - "https://www.codemag.com/Article/2507051/The-New-Features-and-Enhancements-in-.NET-10"
+    recommendations:
+      - "Use AddValidation() for all Minimal API endpoint parameter validation"
+      - "Use the built-in SSE support as a lightweight alternative for endpoints that don't need bidirectional SignalR"
+      - "Map health and metrics endpoints on a separate port or path prefix for proxy isolation"
+    risks:
+      - "OpenAPI 3.1 is now the default; ensure frontend tooling (if code-generating clients) supports 3.1"
+
+  - topic: "Docker Containerization for .NET 10"
+    summary: >
+      Official Microsoft container images are available as mcr.microsoft.com/dotnet/aspnet:10.0
+      and mcr.microsoft.com/dotnet/sdk:10.0 with Debian, Ubuntu, and Alpine variants.
+      Multi-stage Dockerfile is the recommended pattern. Non-root user setup and
+      health checks are well-documented.
+    details: |
+      Official image tags (as of March 2026):
+        Build:
+          - mcr.microsoft.com/dotnet/sdk:10.0           (Debian-based, ~900MB)
+          - mcr.microsoft.com/dotnet/sdk:10.0-alpine     (Alpine-based, ~500MB)
+        Runtime:
+          - mcr.microsoft.com/dotnet/aspnet:10.0         (Debian-based, ~220MB)
+          - mcr.microsoft.com/dotnet/aspnet:10.0-alpine   (Alpine-based, ~110MB)
+          - mcr.microsoft.com/dotnet/aspnet:10.0-noble    (Ubuntu Noble-based)
+
+      Default port: ASP.NET Core apps listen on port 8080 (since .NET 8).
+      Override with ASPNETCORE_URLS or --urls.
+
+      Recommended multi-stage Dockerfile:
+        ```dockerfile
+        # syntax=docker/dockerfile:1
+
+        # --- Build stage ---
+        FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+        ARG TARGETARCH
+        WORKDIR /source
+        COPY *.sln .
+        COPY src/UbiquitiStoreLurker/*.csproj ./src/UbiquitiStoreLurker/
+        RUN dotnet restore -a ${TARGETARCH/amd64/x64}
+        COPY . .
+        WORKDIR /source/src/UbiquitiStoreLurker
+        RUN dotnet publish -a ${TARGETARCH/amd64/x64} -c Release \
+            --no-restore --self-contained false -o /app
+
+        # --- Runtime stage ---
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
+        WORKDIR /app
+
+        # Non-root user
+        ARG UID=1654
+        RUN adduser \
+            --disabled-password \
+            --gecos "" \
+            --home "/nonexistent" \
+            --shell "/sbin/nologin" \
+            --no-create-home \
+            --uid "${UID}" \
+            appuser
+
+        # Create data and log directories owned by appuser
+        RUN mkdir -p /data /logs && chown appuser:appuser /data /logs
+
+        COPY --from=build /app .
+
+        USER appuser
+
+        ENV ASPNETCORE_URLS=http://+:8080
+        EXPOSE 8080
+
+        HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+            CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+
+        ENTRYPOINT ["dotnet", "UbiquitiStoreLurker.dll"]
+        ```
+
+      Docker Compose structure (single-container with volumes):
+        ```yaml
+        services:
+          ubiquitistorelurker:
+            build:
+              context: .
+              dockerfile: Dockerfile
+            image: ubiquitistorelurker:latest
+            container_name: ubiquitistorelurker
+            restart: unless-stopped
+            ports:
+              - "8080:8080"
+            environment:
+              - ASPNETCORE_ENVIRONMENT=Production
+              - ConnectionStrings__Default=Data Source=/data/ubiquitistorelurker.db
+            volumes:
+              - ubiquitistorelurker-data:/data
+              - ubiquitistorelurker-logs:/logs
+            healthcheck:
+              test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+              interval: 30s
+              timeout: 5s
+              retries: 3
+              start_period: 10s
+
+        volumes:
+          ubiquitistorelurker-data:
+          ubiquitistorelurker-logs:
+        ```
+
+      .dockerignore best practices:
+        ```
+        **/.git
+        **/.vs
+        **/.vscode
+        **/bin
+        **/obj
+        **/node_modules
+        **/dist
+        **/.env
+        **/Dockerfile*
+        **/docker-compose*
+        **/*.md
+        **/*.user
+        **/*.suo
+        **/TestResults
+        ```
+
+      Volume mounting for SQLite persistence:
+        - Mount /data as a named Docker volume or bind mount
+        - SQLite database file lives at /data/ubiquitistorelurker.db
+        - WAL and SHM files are co-located automatically
+        - Ensure the volume filesystem supports file locking (ext4, btrfs — not NFS, not CIFS)
+
+      Non-root user considerations:
+        - Create appuser with a fixed UID before COPY
+        - chown /data and /logs directories before switching USER
+        - The UID should not conflict with the host UID for bind mounts; named volumes avoid this
+    packages: []
+    references:
+      - "https://hub.docker.com/r/microsoft/dotnet-aspnet"
+      - "https://docs.docker.com/guides/dotnet/containerize/"
+      - "https://learn.microsoft.com/en-us/dotnet/core/docker/build-container"
+      - "https://victorfrye.com/blog/posts/multi-stage-docker-dotnet-guide"
+    recommendations:
+      - "Use Alpine-based images for smaller footprint (~110MB runtime vs ~220MB Debian)"
+      - "Pin to major.minor (10.0) not patch tags — Microsoft rebuilds tags with CVE fixes"
+      - "Use NuGet cache mount (--mount=type=cache) in build stage for faster rebuilds"
+      - "Always create /data and /logs directories with correct ownership before USER switch"
+      - "Use wget for HEALTHCHECK in Alpine (curl not installed by default)"
+    risks:
+      - "Alpine uses musl libc — rare edge cases with globalization; add ICU package if needed or set DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true"
+      - "SQLite on Docker volumes requires proper filesystem locking support; tmpfs and network mounts are unsafe"
+      - "Named Docker volumes default to root ownership; pre-create dirs and chown in Dockerfile"
+
+  - topic: "SQLite with Entity Framework Core"
+    summary: >
+      Microsoft.EntityFrameworkCore.Sqlite 10.0.5 is the current stable package.
+      WAL mode is effectively the default in EF Core; busy_timeout should be
+      configured via the connection string. Auto-migration on startup is viable
+      for single-instance deployments with the EF9+ migration lock table.
+    details: |
+      NuGet packages and versions (as of March 2026):
+        - Microsoft.EntityFrameworkCore.Sqlite: 10.0.5
+        - Microsoft.EntityFrameworkCore.Design: 10.0.5 (design-time scaffolding and migrations CLI)
+        - Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore: 10.0.5
+
+      Connection string patterns:
+        Development:
+          "Data Source=ubiquitistorelurker.db"
+        Containerized (volume-mounted):
+          "Data Source=/data/ubiquitistorelurker.db"
+        With WAL and busy timeout in pragma:
+          Connection string itself does not support PRAGMA; configure via DbContext:
+          ```csharp
+          protected override void OnConfiguring(DbContextOptionsBuilder options)
+          {
+              options.UseSqlite(connectionString, sqliteOptions =>
+              {
+                  sqliteOptions.CommandTimeout(30);
+              });
+          }
+          ```
+
+      WAL mode configuration:
+        WAL is the de-facto default when using Microsoft.Data.Sqlite / EF Core
+        SQLite provider. The provider opens connections in WAL mode by default.
+        If explicit control is needed:
+        ```csharp
+        // After DbContext is created, execute on the connection:
+        using var connection = context.Database.GetDbConnection();
+        await connection.OpenAsync();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+        await cmd.ExecuteNonQueryAsync();
+        ```
+        Or via an interceptor / connection-opened event.
+
+      Busy timeout:
+        Set via PRAGMA busy_timeout=5000 (milliseconds).
+        Prevents SQLITE_BUSY errors under light concurrent access.
+        For single-writer models, 5000ms is a safe default.
+
+      EF Core migration workflow:
+        ```bash
+        # Add a migration
+        dotnet ef migrations add InitialCreate --project src/UbiquitiStoreLurker
+
+        # Update database
+        dotnet ef database update --project src/UbiquitiStoreLurker
+
+        # Generate SQL script
+        dotnet ef migrations script --project src/UbiquitiStoreLurker
+        ```
+
+      Auto-migration on startup pattern:
+        ```csharp
+        // In Program.cs, after building the app:
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.MigrateAsync();
+        }
+        ```
+        This is acceptable for single-instance deployments (which this project is).
+        EF9+ adds a migration lock table (__EFMigrationsLock) for SQLite to prevent
+        concurrent migration execution.
+
+        Caution: If a migration fails catastrophically, the lock table may retain
+        a stale lock. Manual deletion of __EFMigrationsLock unblocks subsequent runs.
+
+      SQLite concurrency model:
+        - Single writer, multiple readers (with WAL mode)
+        - Only one write transaction at a time; concurrent writes will queue
+          up to busy_timeout, then fail with SQLITE_BUSY
+        - For this single-user app with one scheduler and one worker, this is
+          perfectly adequate
+        - Use a single DbContext per request/unit-of-work; do not share instances
+
+      Health check registration:
+        ```csharp
+        builder.Services.AddHealthChecks()
+            .AddDbContextCheck<AppDbContext>(
+                name: "database",
+                tags: new[] { "ready" });
+        ```
+
+      SQLite provider limitations to be aware of:
+        - DROP COLUMN and ALTER COLUMN require table rebuilds (EF Core handles
+          this automatically since EF Core 5)
+        - No native DateTimeOffset support (requires value converter)
+        - No built-in full-text search in EF Core (available via raw SQL FTS5)
+        - No sequence support
+        - No stored procedures
+    packages:
+      - "Microsoft.EntityFrameworkCore.Sqlite 10.0.5"
+      - "Microsoft.EntityFrameworkCore.Design 10.0.5"
+      - "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore 10.0.5"
+    references:
+      - "https://learn.microsoft.com/en-us/ef/core/providers/sqlite/"
+      - "https://learn.microsoft.com/en-us/ef/core/providers/sqlite/limitations"
+      - "https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks#entity-framework-core-dbcontext-probe"
+      - "https://www.nuget.org/packages/Microsoft.EntityFrameworkCore.Sqlite/10.0.5"
+      - "https://github.com/dotnet/efcore/issues/36513"
+    recommendations:
+      - "Use connection string from configuration (IConfiguration); override via environment variable in Docker"
+      - "Set PRAGMA journal_mode=WAL and PRAGMA busy_timeout=5000 on connection open"
+      - "Use auto-migration on startup (MigrateAsync) since this is a single-instance deployment"
+      - "Register EF Core health check with AddDbContextCheck for /api/health readiness"
+      - "Keep Design package as a development-only dependency (not deployed to runtime)"
+    risks:
+      - "Stale __EFMigrationsLock table after a failed migration can block all subsequent startups"
+      - "SQLite file-level locking is incompatible with NFS, CIFS, and some Docker volume drivers"
+      - "WAL mode creates -wal and -shm sidecar files; backup strategies must include all three files"
+      - "Table rebuild migrations on large tables can be slow; plan data migration carefully"
+
+  - topic: "EF Core Data Modeling Patterns"
+    summary: >
+      Code-first with migrations is the standard approach. DateTimeOffset requires
+      a value converter for SQLite. Enums store as integers by default. Owned types
+      model value objects. Audit columns and soft delete are achieved via conventions
+      or interceptors.
+    details: |
+      Code-first approach:
+        Define entity classes → configure via Fluent API in OnModelCreating →
+        generate migrations → apply at startup or via CLI.
+
+      DateTimeOffset handling in SQLite:
+        SQLite has no native DateTimeOffset type. EF Core's SQLite provider cannot
+        sort or filter DateTimeOffset columns without a value converter.
+
+        Recommended converter: DateTimeOffsetToBinaryConverter (stores as long,
+        preserves offset, millisecond precision).
+
+        ```csharp
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            // Apply DateTimeOffset converter for all entities (SQLite workaround)
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                var properties = entityType.ClrType.GetProperties()
+                    .Where(p => p.PropertyType == typeof(DateTimeOffset)
+                             || p.PropertyType == typeof(DateTimeOffset?));
+                foreach (var property in properties)
+                {
+                    builder.Entity(entityType.Name)
+                        .Property(property.Name)
+                        .HasConversion(new DateTimeOffsetToBinaryConverter());
+                }
+            }
+        }
+        ```
+
+        Limitation: millisecond precision only. Ticks below 1ms are truncated.
+        For this project's stock monitoring use case, millisecond precision is
+        more than sufficient.
+
+      Enum storage (StockState):
+        ```csharp
+        public enum StockState
+        {
+            Unknown = 0,
+            InStock = 1,
+            OutOfStock = 2,
+            Indeterminate = 3
+        }
+        ```
+        By default, EF Core stores enums as their integer backing value.
+        This is the recommended approach — no conversion needed.
+        If string storage is desired: .HasConversion<string>() in Fluent API.
+
+      Value objects and owned types:
+        ```csharp
+        // Owned type example for parser evidence
+        public class ParserEvidence
+        {
+            public string? SelectorUsed { get; set; }
+            public string? ExtractedText { get; set; }
+            public string? MatchedPattern { get; set; }
+        }
+
+        // In OnModelCreating:
+        builder.Entity<StockCheck>()
+            .OwnsOne(e => e.Evidence);
+        ```
+        Owned types store columns inline in the parent table by default.
+        EF Core 10 can also map complex types to JSON columns
+        (with .ComplexProperty(...).ToJson()), but this is primarily for
+        SQL Server 2025 / Azure SQL. For SQLite, inline columns or a
+        serialized JSON string property is more practical.
+
+      Audit columns pattern:
+        ```csharp
+        public interface IAuditable
+        {
+            DateTimeOffset CreatedAt { get; set; }
+            DateTimeOffset UpdatedAt { get; set; }
+        }
+
+        // Set via SaveChanges interceptor or override SaveChangesAsync:
+        public override async Task<int> SaveChangesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var now = DateTimeOffset.UtcNow;
+            foreach (var entry in ChangeTracker.Entries<IAuditable>())
+            {
+                if (entry.State == EntityState.Added)
+                    entry.Entity.CreatedAt = now;
+                if (entry.State == EntityState.Modified)
+                    entry.Entity.UpdatedAt = now;
+            }
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        ```
+
+      Soft delete pattern:
+        ```csharp
+        public interface ISoftDeletable
+        {
+            bool IsDeleted { get; set; }
+            DateTimeOffset? DeletedAt { get; set; }
+        }
+
+        // Global query filter:
+        builder.Entity<Product>()
+            .HasQueryFilter(e => !e.IsDeleted);
+        ```
+        EF Core 10 introduces named query filters for finer control:
+        ```csharp
+        builder.Entity<Product>()
+            .HasQueryFilter("SoftDelete", e => !e.IsDeleted);
+        ```
+        Named filters can be toggled on/off per query.
+
+      Index configuration for common queries:
+        ```csharp
+        builder.Entity<StockTransition>()
+            .HasIndex(e => e.ProductId);
+        builder.Entity<StockTransition>()
+            .HasIndex(e => e.DetectedAtUtc);
+        builder.Entity<Product>()
+            .HasIndex(e => e.IsDeleted);
+        ```
+    packages:
+      - "Microsoft.EntityFrameworkCore.Sqlite 10.0.5"
+    references:
+      - "https://learn.microsoft.com/en-us/ef/core/modeling/value-conversions"
+      - "https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew"
+      - "https://gist.github.com/GeorgDangl/b90370124720ed8fed9539509aafd155"
+      - "https://blog.dangl.me/archive/handling-datetimeoffset-in-sqlite-with-entity-framework-core/"
+      - "https://www.learnentityframeworkcore.com/efcore/efcore-10-what-is-new"
+    recommendations:
+      - "Apply DateTimeOffsetToBinaryConverter globally to all DateTimeOffset properties in OnModelCreating"
+      - "Store enums as integers (default) for StockState; document the mapping in comments"
+      - "Use IAuditable interface + SaveChangesAsync override for consistent audit timestamps"
+      - "Use global query filters for soft delete; consider named filters (EF Core 10) for flexibility"
+      - "Prefer owned types for small value objects; use serialized JSON string for larger nested structures"
+    risks:
+      - "DateTimeOffsetToBinaryConverter truncates sub-millisecond precision; acceptable for this project"
+      - "Owned types cannot be shared across entities; each ownership is unique"
+      - "Global query filters affect all LINQ queries including joins; ensure IgnoreQueryFilters() is used where needed"
+      - "JSON column support (.ToJson()) in EF Core 10 is primarily SQL Server/Azure SQL; not fully available for SQLite"
+
+  - topic: "Containerized Development Workflow"
+    summary: >
+      Development in Docker uses volume mounts with dotnet watch for hot reload.
+      Environment variables configure the app per environment. Secrets should use
+      .env files (excluded from source control) or Docker secrets, not hardcoded
+      values.
+    details: |
+      dotnet watch in container:
+        Mount the source directory into the container and override the entrypoint:
+        ```yaml
+        services:
+          ubiquitistorelurker-dev:
+            build:
+              context: .
+              dockerfile: Dockerfile
+              target: build  # Use the SDK build stage
+            volumes:
+              - ./src:/source/src
+              - ubiquitistorelurker-data:/data
+            ports:
+              - "8080:8080"
+            environment:
+              - ASPNETCORE_ENVIRONMENT=Development
+              - ASPNETCORE_URLS=http://+:8080
+              - ConnectionStrings__Default=Data Source=/data/ubiquitistorelurker-dev.db
+            command: ["dotnet", "watch", "--project", "/source/src/UbiquitiStoreLurker", "run"]
+        ```
+
+        Alternative: develop natively on host, use Docker only for production.
+        This is simpler and avoids volume mount performance issues on
+        macOS/Windows. On Linux (this server), bind mount performance is native.
+
+      Development vs Production Dockerfile stages:
+        The multi-stage Dockerfile naturally separates concerns:
+        - `build` stage: SDK image, full source, restore + publish
+        - `test` stage (optional): runs dotnet test, fails build on test failure
+        - `final` stage: runtime image, published output only, non-root user
+        Development runs against the `build` target with source mounts.
+        Production uses the full pipeline ending at `final`.
+
+      Environment variable configuration:
+        ASP.NET Core configuration hierarchy (lowest to highest priority):
+          1. appsettings.json
+          2. appsettings.{Environment}.json
+          3. User secrets (development only)
+          4. Environment variables
+          5. Command-line arguments
+
+        Docker env vars override appsettings via double-underscore notation:
+          ConnectionStrings__Default → ConnectionStrings:Default
+          Serilog__MinimumLevel → Serilog:MinimumLevel
+          Notifications__Discord__WebhookUrl → Notifications:Discord:WebhookUrl
+
+        In docker-compose.yml:
+          ```yaml
+          environment:
+            - ASPNETCORE_ENVIRONMENT=Production
+            - ConnectionStrings__Default=Data Source=/data/ubiquitistorelurker.db
+          env_file:
+            - .env  # Contains secrets like webhook URLs, SMTP credentials
+          ```
+
+      Secrets management:
+        For this single-host Docker deployment:
+          - Use an .env file alongside docker-compose.yml (gitignored)
+          - .env contains notification provider credentials:
+            ```
+            Notifications__Discord__WebhookUrl=https://discord.com/api/webhooks/...
+            Notifications__Email__SmtpPassword=...
+            Notifications__WebPush__VapidPrivateKey=...
+            ```
+          - The app reads these as standard environment variables via IConfiguration
+          - Never log secret values; mark notification credential properties as write-only in API responses
+
+        For more advanced setups (not needed initially):
+          - Docker Swarm secrets (docker secret create)
+          - HashiCorp Vault
+          - Azure Key Vault
+
+      Database file persistence across container recreations:
+        - Named Docker volumes persist data across container stop/start/recreate
+        - Bind mount to a host directory for easy backup access:
+          ```yaml
+          volumes:
+            - /opt/docker/apps/ubiquitistorelurker/data:/data
+            - /opt/docker/apps/ubiquitistorelurker/logs:/logs
+          ```
+        - For this Proxmox host, /devpool/docker-volumes/ubiquitistorelurker/ is appropriate
+    packages: []
+    references:
+      - "https://docs.docker.com/guides/dotnet/containerize/"
+      - "https://dometrain.com/blog/introduction-to-docker-for-dotnet-developers/"
+      - "https://stackoverflow.com/questions/42729723/should-i-use-user-secrets-or-environment-variables-with-docker"
+      - "https://www.toolbrew.dev/blog/docker-containerization-best-practices-2025"
+    recommendations:
+      - "Develop natively on host for fastest iteration; use Docker only for CI and production"
+      - "Use .env file (gitignored) for secrets in docker-compose; never hardcode credentials"
+      - "Use double-underscore env var notation to override nested configuration sections"
+      - "Mount /data to a persistent volume on devpool for SQLite persistence and easy ZFS snapshotting"
+      - "Include a docker-compose.override.yml for development-specific overrides (port mapping, debug env)"
+    risks:
+      - "dotnet watch in container adds overhead and complexity vs native development"
+      - ".env files on disk are readable by anyone with host access; ensure proper file permissions (0600)"
+      - "Bind mounts expose host paths; named volumes are more portable but harder to inspect directly"
+
+  - topic: "EF Core 10 New Features Relevant to This Project"
+    summary: >
+      EF Core 10 ships with LeftJoin/RightJoin LINQ operators, ExecuteUpdateAsync
+      with custom logic, named query filters, JSON column mapping for complex types,
+      and vector search support (SQL Server/Azure SQL only). For SQLite, the most
+      impactful features are named query filters and improved migration locking.
+    details: |
+      Features relevant to this project:
+
+      1. Named Query Filters:
+         Define multiple named filters per entity, toggle individually.
+         Useful for soft delete, active-only, per-tenant filtering.
+         ```csharp
+         builder.Entity<Product>()
+             .HasQueryFilter("SoftDelete", e => !e.IsDeleted)
+             .HasQueryFilter("ActiveOnly", e => e.IsActive);
+
+         // Disable specific filter for a query:
+         context.Products.IgnoreQueryFilter("SoftDelete").ToListAsync();
+         ```
+
+      2. LeftJoin / RightJoin LINQ Operators:
+         Explicit join semantics without the GroupJoin/SelectMany pattern.
+         Cleaner LINQ for reports (e.g., products with their latest transition).
+
+      3. ExecuteUpdateAsync with Custom Logic:
+         Bulk updates without loading entities.
+         ```csharp
+         await context.Products
+             .Where(p => p.IsDeleted && p.DeletedAt < cutoff)
+             .ExecuteDeleteAsync();
+         ```
+
+      4. JSON Columns (.ComplexProperty().ToJson()):
+         Maps complex types to JSON columns. Primarily benefits SQL Server 2025
+         and Azure SQL. SQLite support is limited — no query pushdown into JSON
+         columns on SQLite. Not recommended as a primary pattern for this project.
+
+      5. Improved Migration Locking (EF9+ carried forward):
+         __EFMigrationsLock table prevents concurrent migration runs.
+         Important for startup-based auto-migration safety.
+
+      6. Vector Search:
+         SQL Server 2025 / Azure SQL only. Not applicable to SQLite.
+         Irrelevant for this project.
+    packages:
+      - "Microsoft.EntityFrameworkCore.Sqlite 10.0.5"
+    references:
+      - "https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew"
+      - "https://www.learnentityframeworkcore.com/efcore/efcore-10-what-is-new"
+    recommendations:
+      - "Use named query filters for soft delete and active-only entity filtering"
+      - "Use LeftJoin for cleaner report queries joining products to transitions"
+      - "Use ExecuteDeleteAsync for bulk cleanup of old telemetry/transition data"
+      - "Avoid JSON column mapping on SQLite — use inline owned types or serialized string properties instead"
+    risks:
+      - "Named query filters are new in EF Core 10; limited community examples for edge cases"
+      - "JSON column support on SQLite is minimal; avoid relying on server-side JSON queries"
+
+open_questions:
+  - question: "Should the project target Alpine or Debian-based container images?"
+    context: >
+      Alpine is significantly smaller (~110MB vs ~220MB) but uses musl libc which
+      occasionally causes globalization issues. The project likely does not need
+      advanced globalization features, making Alpine suitable. However, if any
+      dependency relies on glibc-specific behavior, Debian is safer.
+  - question: "Should the SQLite database path be configurable or hardcoded to /data/ubiquitistorelurker.db?"
+    context: >
+      Using a configurable connection string via environment variable is the
+      standard pattern, but the path must always point inside the mounted volume.
+      Both approaches work; configurable is more flexible for testing.
+  - question: "Is DateTimeOffsetToBinaryConverter the best choice, or should the project use UTC DateTime instead?"
+    context: >
+      DateTimeOffsetToBinaryConverter preserves offset information but truncates
+      to millisecond precision. Since this is a single-timezone single-user app,
+      using DateTime (UTC) everywhere would avoid the converter complexity entirely.
+      However, DateTimeOffset is more semantically correct and the converter works
+      reliably.
+  - question: "Should EF Core migrations be applied at startup or via a separate migration step?"
+    context: >
+      Auto-migration on startup (MigrateAsync) is convenient for single-instance
+      deployments. The alternative is a separate dotnet ef database update step
+      during deployment. For this Docker single-container app, startup migration
+      is the simpler approach with acceptable risk.
+
+gaps:
+  - area: ".NET 10 SDK container build caching"
+    description: >
+      The exact BuildKit cache mount syntax for NuGet packages in .NET 10 SDK
+      containers was not deeply verified. The pattern --mount=type=cache,target=/root/.nuget/packages
+      is documented in Docker's official .NET guide but specific behavior with
+      SDK 10.0 was not confirmed.
+    impact: "Low — the pattern is well-established and unlikely to have changed."
+  - area: "EF Core 10 SQLite-specific JSON column behavior"
+    description: >
+      The exact level of JSON column support (.ToJson()) for the SQLite provider
+      in EF Core 10 was not exhaustively verified. The recommendation to avoid
+      it on SQLite is based on historical SQLite provider limitations.
+    impact: "Low — the recommendation is conservative and inline owned types are a proven alternative."
+  - area: "Exact Alpine globalization behavior with .NET 10"
+    description: >
+      Whether .NET 10 Alpine images include ICU by default or still require
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true was not verified against the
+      latest 10.0.5 images.
+    impact: "Medium — can be tested quickly during initial container build."

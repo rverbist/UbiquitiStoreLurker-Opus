@@ -1,0 +1,645 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "EnhancedDocumentDto",
+  "type": "object",
+  "description": "JSON Schema for EnhancedDocumentDto",
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EnhancedDocNodeDto"
+      }
+    },
+    "definitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DocDefinitionDto"
+      }
+    },
+    "metadata": {
+      "$ref": "#/definitions/EnhancedDocumentMetadata"
+    }
+  },
+  "definitions": {
+    "EnhancedDocNodeDto": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "endLine": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "type": {
+          "type": "string"
+        },
+        "anchor": {
+          "type": "string"
+        },
+        "depth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "parent": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "heading": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "fullTitle": {
+          "type": "string"
+        },
+        "children": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "referencing": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "referenced": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "terminology": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "referencesWithContext": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/ReferenceMetadata"
+          }
+        },
+        "structuralMetadata": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/StructuralMetadata"
+            }
+          ]
+        },
+        "graphMetrics": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/GraphMetrics"
+            }
+          ]
+        }
+      }
+    },
+    "ReferenceMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targetId": {
+          "type": "string"
+        },
+        "context": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "contextType": {
+          "$ref": "#/definitions/ReferenceContextType"
+        },
+        "lineInSource": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "snippet": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "ReferenceContextType": {
+      "type": "string",
+      "description": "",
+      "x-enum-names": [
+        "Unknown",
+        "Compliance",
+        "Exception",
+        "Supplement",
+        "Delegation",
+        "Reference",
+        "Modification",
+        "Application",
+        "Requirement"
+      ],
+      "x-enum-varnames": [
+        "Unknown",
+        "Compliance",
+        "Exception",
+        "Supplement",
+        "Delegation",
+        "Reference",
+        "Modification",
+        "Application",
+        "Requirement"
+      ],
+      "x-enumNames": [
+        "Unknown",
+        "Compliance",
+        "Exception",
+        "Supplement",
+        "Delegation",
+        "Reference",
+        "Modification",
+        "Application",
+        "Requirement"
+      ],
+      "x-enum-descriptions": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "x-enumDescriptions": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "enum": [
+        "Unknown",
+        "Compliance",
+        "Exception",
+        "Supplement",
+        "Delegation",
+        "Reference",
+        "Modification",
+        "Application",
+        "Requirement"
+      ]
+    },
+    "StructuralMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hasObligations": {
+          "type": "boolean"
+        },
+        "obligationVerbs": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "hasPermissions": {
+          "type": "boolean"
+        },
+        "hasProhibitions": {
+          "type": "boolean"
+        },
+        "applicableTo": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "paragraphCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "subparagraphCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "hasAnnexReference": {
+          "type": "boolean"
+        },
+        "annexesReferenced": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "hasTimeline": {
+          "type": "boolean"
+        },
+        "hasPenalties": {
+          "type": "boolean"
+        }
+      }
+    },
+    "GraphMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inDegree": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "outDegree": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "depth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "transitiveReferences": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dependencyChainLength": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "DocDefinitionDto": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "anchor": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "referenced": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "EnhancedDocumentMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scanDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "string"
+        },
+        "regulation": {
+          "type": "string"
+        },
+        "totalNodes": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalDefinitions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nodesByType": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "timeline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Timeline"
+            }
+          ]
+        },
+        "penaltyStructure": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/PenaltyStructure"
+            }
+          ]
+        },
+        "indices": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/DocumentIndices"
+            }
+          ]
+        },
+        "validation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/ValidationReport"
+            }
+          ]
+        }
+      }
+    },
+    "Timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TimelineEvent"
+          }
+        }
+      }
+    },
+    "TimelineEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string"
+        },
+        "articleRefs": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "PenaltyStructure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PenaltyTier"
+          }
+        }
+      }
+    },
+    "PenaltyTier": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "alternativeFormula": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "appliesTo": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "DocumentIndices": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "byTerminology": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "byActor": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "byObligation": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "ValidationReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "checks": {
+          "$ref": "#/definitions/ValidationChecks"
+        },
+        "statistics": {
+          "$ref": "#/definitions/DocumentStatistics"
+        }
+      }
+    },
+    "ValidationChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "referenceIntegrity": {
+          "$ref": "#/definitions/DocumentValidationResult"
+        },
+        "cyclicDependencies": {
+          "$ref": "#/definitions/DocumentValidationResult"
+        },
+        "completeness": {
+          "$ref": "#/definitions/CompletenessCheck"
+        }
+      }
+    },
+    "DocumentValidationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "brokenReferences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "orphanedNodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "CompletenessCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expectedArticles": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "foundArticles": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "missingArticles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "DocumentStatistics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "totalNodes": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalReferences": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "avgReferencesPerArticle": {
+          "type": "number",
+          "format": "double"
+        },
+        "maxReferenceDepth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "mostReferencedArticle": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/MostReferencedInfo"
+            }
+          ]
+        }
+      }
+    },
+    "MostReferencedInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    }
+  }
+}

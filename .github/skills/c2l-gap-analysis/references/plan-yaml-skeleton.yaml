@@ -1,0 +1,158 @@
+# version: '1.0.0'
+# plan.yaml — Fill-in-the-Blanks Template
+#
+# AUTHORING INSTRUCTIONS (remove this comment block before committing output)
+# ───────────────────────────────────────────────────────────────────────────
+# Author:    gem-planner (sole file author for plan.yaml)
+# Input:     gem-researcher verified findings + gap-analysis.md task register
+# Spec:      .github/skills/c2l-gap-analysis/references/plan-yaml-specification.md
+# State:     .github/skills/c2l-gap-analysis/references/plan-state-contract.md
+# Plan dir:  ${PLAN_ROOT}/${SCOPE}-gap-analysis-YYYYMMDD/
+# Alignment: plan.yaml and plan.md must describe the same work, same order, same scope.
+# Scope:     All tasks start as status: deferred + in_scope: false (scope gate).
+# Dates:     Use YYYYMMDD for plan_id / directory names; YYYY-MM-DD in quoted string fields.
+# Template:  Replace every <angle-bracket placeholder> with real content.
+#            Remove all comment blocks before committing.
+
+# ─── Top-Level Metadata ──────────────────────────────────────────────────
+
+plan_id: ${SCOPE}-gap-analysis-<YYYYMMDD>
+plan_path: ${PLAN_ROOT}/${SCOPE}-gap-analysis-<YYYYMMDD>/plan.yaml
+source_document: ${PLAN_ROOT}/${SCOPE}-gap-analysis-<YYYYMMDD>/gap-analysis.md
+objective: |
+  <One paragraph describing the overall goal of the plan. Reference the source gap analysis
+  and the target module/scope.>
+created_at: "<YYYY-MM-DD>"
+created_by: gem-planner
+status: active
+research_confidence: <high | medium | low>
+
+# ─── Summary ─────────────────────────────────────────────────────────────
+
+tldr: |
+  <3–8 line executive summary. Must state: task count, critical path, total effort estimate,
+  execution phases, and scope gate status. Example:
+  "N tasks identified across M priority tiers. Critical path: T1 → T3 → T5.
+  Total effort: ~X–Y engineer-days. All tasks status: deferred (scope gate).">  
+
+open_questions:
+  # - "<Unresolved question that may affect execution>"
+  []
+
+# ─── Scope History (current format — one entry per scope selection pass) ──
+
+scope_history: []  # gem-planner writes [] on creation — never absent from a valid plan.yaml.
+# Appended at scope-selection time. Do not pre-populate. Example entry:
+#   - timestamp: "<YYYY-MM-DDTHH:mm:ss>"
+#     in_scope: [T1, T2]
+#     out_of_scope: [T3, T4]
+
+# ─── Execution History (one entry per completed execution pass) ──────────
+
+execution_history: []  # gem-planner writes [] on creation — never absent from a valid plan.yaml.
+# Appended when walkthrough is generated at Phase 4. Do not pre-populate. Example entry:
+#   - run_number: 1
+#     run_id: "<YYYYMMDD-HHmmss>"
+#     started_at: "<YYYY-MM-DDTHH:mm:ss>"
+#     completed_at: "<YYYY-MM-DDTHH:mm:ss>"
+#     selected_tasks: [T1, T2]
+#     completed_tasks: [T1]
+#     blocked_tasks: [T2]
+#     commit: "<post-commit: git log -1 --format=%H>"  # apply plan-state-contract.md §Commit Placeholder Contract
+#     walkthrough: "${PLAN_ROOT}/${SCOPE}-gap-analysis-<YYYYMMDD>/walkthrough-completion-<YYYYMMDD-HHmmss>.md"
+
+# ─── Pre-Mortem ──────────────────────────────────────────────────────────
+
+pre_mortem:
+  overall_risk_level: <low | medium | high | critical>
+  critical_failure_modes:
+    - scenario: "<What could go wrong? Reference specific tasks/files/patterns.>"
+      likelihood: <low | medium | high>
+      impact: <low | medium | high>
+      mitigation: "<Concrete action to reduce risk.>"
+      # outcome: "<Filled post-execution if triggered. Describe what happened and resolution.>"
+    # - scenario: "<Second failure mode>"
+    #   likelihood: ...
+    #   impact: ...
+    #   mitigation: "..."
+  assumptions:
+    - "<Explicit assumption underlying the plan>"
+    # - "<Second assumption>"
+
+# ─── Implementation Specification ────────────────────────────────────────
+
+implementation_specification:
+  code_structure: |
+    Backend changes:
+      <List directories/files affected, grouped by concern>
+    Frontend changes:
+      <List directories/files affected, grouped by concern>
+
+  affected_areas:
+    - "<Directory or area> — <brief nature of changes>"
+    # - "<Second area>"
+
+  component_details:
+    - component: "<Component name (TN)>"
+      responsibility: "<One sentence: what this component does>"
+      interfaces:
+        - "<API endpoint, Angular service, or UI touchpoint>"
+        # - "<Second interface>"
+    # - component: "<Second component>"
+    #   responsibility: "..."
+    #   interfaces: [...]
+
+  dependencies:
+    - component: "<TN (component name)>"
+      relationship: "<What depends on what and why>"
+    # - component: "..."
+    #   relationship: "..."
+
+  integration_points:
+    - "<How tasks interact or share state at runtime>"
+    # - "<Second integration point>"
+
+# ─── Tasks ───────────────────────────────────────────────────────────────
+
+tasks:
+  - id: T<N>
+    title: "<Short task title (max 80 chars)>"
+    description: |
+      <Detailed description of the work. Cite specific files and methods.
+      Reference the MVT rows from gap-analysis.md that this task addresses.>
+    agent: gem-implementer                    # fixed for this skill
+    priority: <critical | high | medium | low | deferred>   # map P0-P4 via plan-state-contract.md §Priority Mapping
+    status: deferred                          # Scope gate — do not change on creation
+    in_scope: false                           # Scope gate — do not change on creation
+    dependencies: []                          # [TN, TN] if dependent
+    context_files:
+      "<path/to/file.cs>": "<Why this file is relevant>"
+      # "<path/to/second-file.js>": "<Why relevant>"
+    estimated_effort: <small | medium | large>
+    estimated_files: <N>
+    estimated_lines: <N>
+    focus_area: "<Functional area label from source research_findings_<focus-area>.yaml>"
+    verification:
+      - "<Step to verify implementation correctness>"
+      # - "<Second verification step>"
+    acceptance_criteria:
+      - "<Falsifiable criterion — at least one must be build-level or runtime-level>"
+      - "VS Code task `msbuild:build` succeeds"
+      # - "<Additional criterion>"
+    failure_modes:
+      - scenario: "<What could go wrong with this specific task>"
+        likelihood: <low | medium | high>
+        impact: <low | medium | high>
+        mitigation: "<Concrete action>"
+        # outcome: "<Filled post-execution if triggered>"
+    tech_stack:
+      - "<Technology, e.g., AngularJS 1.x>"
+      # - "<Second technology>"
+    test_coverage: null                       # or "<Description of test coverage>"
+    requires_review: true
+    review_depth: <lightweight | standard | deep>
+    security_sensitive: false                 # true if auth/authz/data-access involved
+
+  # - id: T<N>
+  #   title: "..."
+  #   ... (repeat for each task)

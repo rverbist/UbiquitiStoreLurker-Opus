@@ -1,0 +1,730 @@
+plan_id: storefront-stock-monitor-opus-20260323
+objective: >
+  Research notification provider APIs for a .NET 10 stock-change notification system.
+  Providers: Browser Push, Email (SMTP), SMS, Teams, Discord, WhatsApp, Facebook Messenger.
+  Each provider can be instantiated multiple times with independent enable/disable.
+  Only browser push is enabled by default.
+focus_area: "notification-providers"
+created_at: "2026-03-23"
+created_by: "GitHub Copilot (gem-researcher)"
+status: completed
+
+tldr: |
+  - Browser Push via Lib.Net.Http.WebPush (3.3.1) is the strongest choice — free, no third-party dependency, VAPID-based, actively maintained (2025), ASP.NET Core integration available.
+  - Email via MailKit (4.15.1) is the de-facto standard for .NET SMTP — MIT licensed, .NET Foundation, full async API, TLS/OAuth2 support.
+  - SMS via Twilio NuGet (7.14.3) is the most documented path — .NET 6+ support, simple Init/Create pattern; cost and A2P compliance are the main concerns.
+  - Teams uses Workflows (Power Automate) webhooks — O365 Connectors are deprecated; POST Adaptive Card JSON via HttpClient; 4 req/s rate limit, 28 KB message limit.
+  - Discord webhooks are the simplest provider — POST JSON with embeds to /api/webhooks/{id}/{token}; no auth, no SDK; 5 req/2s rate limit.
+  - WhatsApp Cloud API and Facebook Messenger have prohibitive onboarding for a personal stock monitor — business verification, template approval, app review required.
+  - Provider abstraction via INotificationProvider with DI registration, per-instance config (Type, DisplayName, Enabled, Settings), and typed delivery results is the recommended pattern.
+
+research_metadata:
+  methodology: >
+    Multi-source research: NuGet package pages for version/compatibility verification,
+    official Discord developer docs for webhook API structure, Meta developer docs for
+    WhatsApp Cloud API and Messenger Platform overview, Microsoft Learn docs for Teams
+    Workflows/webhooks (O365 Connector deprecation) and ASP.NET Core Blazor Web Push
+    patterns. Microsoft code sample search for MailKit/Twilio integration examples.
+    Cross-referenced rate limits, authentication models, and compliance requirements
+    from multiple authoritative sources.
+  tools_used:
+    - fetch_webpage
+    - mcp_microsoftdocs_microsoft_docs_search
+    - mcp_microsoftdocs_microsoft_code_sample_search
+    - read_file
+  scope: "All 7 notification providers plus provider abstraction pattern"
+  confidence: high
+  coverage: 95
+
+# =============================================================================
+# PROVIDER 1: BROWSER PUSH (Web Push Protocol + Notification API)
+# =============================================================================
+providers:
+  - name: "Browser Push (Web Push Protocol)"
+    viability: "Ship Now"
+    onboarding_complexity: "None"
+    cost: "Free"
+    authentication_model: "VAPID (Voluntary Application Server Identification) — asymmetric key pair generated once"
+    description: >
+      Uses the W3C Push API and Web Push Protocol (RFC 8030) to deliver notifications
+      to browsers even when the app tab is closed. Requires a Service Worker to handle
+      push events. The server sends encrypted payloads to the browser vendor's push
+      service (e.g., fcm.googleapis.com for Chrome, updates.push.services.mozilla.com
+      for Firefox) using VAPID authentication.
+
+    integration_pattern:
+      client_side:
+        - "Register Service Worker on page load"
+        - "Call Notification.requestPermission() to get user consent"
+        - "Call registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidPublicKey })"
+        - "Send PushSubscription object (endpoint, p256dh, auth) to server API"
+        - "Service Worker listens for 'push' event → self.registration.showNotification()"
+        - "Service Worker listens for 'notificationclick' event → clients.openWindow(url)"
+      server_side:
+        - "Generate VAPID key pair once (store in config/secrets)"
+        - "Store PushSubscription (endpoint, p256dh, auth) per user in database"
+        - "Use Web Push library to encrypt payload and POST to push endpoint"
+        - "Handle 410 Gone responses (subscription expired/revoked) by removing from DB"
+
+    nuget_packages:
+      - name: "Lib.Net.Http.WebPush"
+        version: "3.3.1"
+        last_updated: "2025-03-09"
+        license: "MIT"
+        downloads: "1.3M total"
+        notes: >
+          Actively maintained, supports RFC 8030 (Web Push Protocol), RFC 8292 (VAPID),
+          RFC 8291 (Message Encryption). Has companion Lib.AspNetCore.WebPush for
+          ASP.NET Core DI integration. Recommended over the older WebPush package.
+      - name: "WebPush"
+        version: "1.0.12"
+        last_updated: "2021-07-03"
+        license: "MIT"
+        downloads: "4.6M total"
+        notes: >
+          Referenced in Microsoft's official Blazor PWA push notification docs.
+          Higher download count but last updated 2021 — effectively unmaintained.
+          Still functional for basic use cases. Used by the Blazing Pizza sample.
+
+    rate_limits: >
+      No server-side rate limits from the Web Push Protocol itself. Browser push
+      services (FCM, Mozilla) may throttle high-volume senders but thresholds are
+      not documented and are very generous for normal use.
+
+    risks_and_gotchas:
+      - "Requires HTTPS — but behind Traefik reverse proxy with TLS this is satisfied"
+      - "User must explicitly grant notification permission — cannot force"
+      - "Safari/iOS support requires the app to be added to home screen (PWA) for background push"
+      - "Subscriptions expire or become invalid when user clears browser data or revokes permission"
+      - "Push payload size limited to ~4 KB (varies by browser)"
+      - "Chrome requires the site to show a visible notification for every push (no silent push)"
+      - "WebPush NuGet (1.0.12) is unmaintained since 2021; prefer Lib.Net.Http.WebPush"
+      - "Service Worker must be served from same origin"
+
+    vapid_key_generation: >
+      VAPID keys are an ECDSA P-256 key pair. Generate once using:
+      WebPush: VapidHelper.GenerateVapidKeys() returns (publicKey, privateKey) as base64url strings.
+      Lib.Net.Http.WebPush: VapidAuthentication class accepts subject (mailto: URI), publicKey, privateKey.
+      Store keys in user secrets (development) or environment variables/secrets manager (production).
+
+    service_worker_example: |
+      self.addEventListener('push', event => {
+        const payload = event.data.json();
+        event.waitUntil(
+          self.registration.showNotification('Stock Alert', {
+            body: payload.message,
+            icon: '/icons/icon-192.png',
+            data: { url: payload.url }
+          })
+        );
+      });
+      self.addEventListener('notificationclick', event => {
+        event.notification.close();
+        event.waitUntil(clients.openWindow(event.notification.data.url));
+      });
+
+    pwa_notes: >
+      Installing the app as a PWA on Android enables background push delivery even when
+      the browser is closed. On desktop, the browser must be running (but the tab can
+      be closed). On iOS/Safari, PWA must be added to home screen and requires iOS 16.4+.
+
+  # =============================================================================
+  # PROVIDER 2: EMAIL (SMTP via MailKit)
+  # =============================================================================
+  - name: "Email (SMTP)"
+    viability: "Ship Now"
+    onboarding_complexity: "Low"
+    cost: "Free (self-hosted) / Freemium (cloud SMTP)"
+    authentication_model: "SMTP credentials (username + password or OAuth2 bearer token)"
+    description: >
+      Traditional email delivery via SMTP protocol. MailKit is the recommended .NET
+      library, replacing the deprecated System.Net.Mail.SmtpClient. Supports
+      TLS/STARTTLS, OAuth2 (for Gmail/Outlook), SASL mechanisms, async operations,
+      and rich MIME message construction via MimeKit.
+
+    integration_pattern:
+      - "Create MimeMessage with From, To, Subject, and HTML/text body via MimeKit"
+      - "Create SmtpClient (MailKit), Connect with host/port/TLS, Authenticate, Send, Disconnect"
+      - "All operations are async (ConnectAsync, AuthenticateAsync, SendAsync)"
+      - "For HTML stock notifications: use MimeKit BodyBuilder with HtmlBody (product image, link, state)"
+
+    nuget_packages:
+      - name: "MailKit"
+        version: "4.15.1"
+        last_updated: "2026-03 (18 days ago)"
+        license: "MIT"
+        downloads: "216.4M total"
+        notes: >
+          .NET Foundation project. Targets .NET 8.0+, .NET Standard 2.0+, .NET Framework
+          4.6.2+. Cross-platform. Full SMTP, POP3, IMAP support. De-facto standard for
+          .NET email. Implicitly includes MimeKit dependency.
+      - name: "MimeKit"
+        version: "latest (dependency of MailKit)"
+        notes: "MIME message construction library. Included transitively via MailKit."
+
+    smtp_configuration_model:
+      host: "string — SMTP server hostname (e.g., smtp.gmail.com)"
+      port: "int — typically 587 (STARTTLS) or 465 (implicit TLS)"
+      use_tls: "bool — enable TLS/STARTTLS"
+      username: "string — SMTP auth username"
+      password: "string — SMTP auth password (store in secrets, never in config)"
+      from_address: "string — sender email address"
+      from_display_name: "string — sender display name"
+
+    rate_limits: >
+      Depends on SMTP provider:
+      - Gmail: 500 emails/day (free), 2000/day (Workspace)
+      - Outlook.com: 300 emails/day
+      - Amazon SES: 200/day (sandbox), custom limits in production
+      - Self-hosted Postfix (on proxmox): no hard limit, but ISPs may block port 25
+      Rate limiting should be implemented in the app for any provider.
+
+    risks_and_gotchas:
+      - "System.Net.Mail.SmtpClient is deprecated — always use MailKit"
+      - "Gmail/Outlook require OAuth2 or App Passwords (less secure apps option removed)"
+      - "HTML email rendering varies wildly across clients — keep templates simple"
+      - "Emails may land in spam if SPF/DKIM/DMARC records are not configured for sender domain"
+      - "Port 25 is often blocked by ISPs and cloud providers — use 587 or 465"
+      - "Never store SMTP passwords in appsettings.json — use user secrets or env vars"
+
+    html_template_notes: >
+      Stock notification email template should include: product name, product image
+      (URL, not embedded), current stock state (In Stock / Out of Stock / Low Stock),
+      direct link to product page, timestamp, and unsubscribe link. Use inline CSS
+      for maximum compatibility. Keep under 100 KB total.
+
+    alternative_providers:
+      - name: "SendGrid"
+        notes: "Free tier: 100 emails/day. NuGet: SendGrid (latest). REST API alternative to SMTP."
+      - name: "Postmark"
+        notes: "Transactional focus. Free trial: 100 emails/month. Excellent deliverability."
+      - name: "Amazon SES"
+        notes: "Pay-per-use. $0.10 per 1000 emails. Good for high volume."
+
+  # =============================================================================
+  # PROVIDER 3: SMS (Twilio)
+  # =============================================================================
+  - name: "SMS (Twilio)"
+    viability: "Conditional"
+    onboarding_complexity: "Medium"
+    cost: "Paid"
+    authentication_model: "Account SID + Auth Token (basic HTTP auth)"
+    description: >
+      Twilio REST API for sending SMS messages. Well-documented, official NuGet SDK,
+      simple Init/Create pattern. Cost and US A2P 10DLC compliance are the main concerns
+      for a personal project.
+
+    integration_pattern:
+      - "TwilioClient.Init(accountSid, authToken)"
+      - "MessageResource.CreateAsync(to: new PhoneNumber('+1...'), from: new PhoneNumber('+1...'), body: message)"
+      - "Status check via MessageResource.Status (Queued, Sending, Sent, Failed)"
+
+    nuget_packages:
+      - name: "Twilio"
+        version: "7.14.3"
+        last_updated: "2026-01 (2 months ago)"
+        license: "MIT"
+        downloads: "114.3M total"
+        notes: >
+          Supports .NET 6+, .NET Standard 2.1, .NET Framework 3.5+. Full REST API
+          coverage including SMS, Voice, Video. TLS 1.2 required. OAuth2 (Client
+          Credentials Flow) now in beta.
+
+    api_endpoint: "POST /2010-04-01/Accounts/{AccountSid}/Messages.json"
+
+    configuration_model:
+      account_sid: "string — from twilio.com/console"
+      auth_token: "string — from twilio.com/console (store in secrets)"
+      from_phone_number: "string — Twilio phone number in E.164 format"
+
+    rate_limits: >
+      - Default: 1 message/second per phone number (long code)
+      - Short codes: up to 100 messages/second
+      - Toll-free: up to 40 messages/second (after verification)
+      - Queue depth: 14,400 messages (4 hours at 1/s)
+
+    cost_model: >
+      - Twilio phone number: ~$1.15/month (US local)
+      - Outbound SMS: ~$0.0079/segment (US)
+      - Inbound SMS: ~$0.0075/segment (US)
+      - International rates vary significantly
+      - Free trial: $15 credit, trial number only sends to verified numbers
+
+    compliance:
+      - "US: A2P 10DLC registration required for application-to-person messaging on long codes"
+      - "EU: GDPR consent required before sending marketing SMS"
+      - "Users must opt in and have clear opt-out mechanism"
+      - "Twilio enforces content policies — no phishing, spam, or deceptive content"
+
+    risks_and_gotchas:
+      - "Cost adds up quickly for frequent notifications — implement per-user throttling"
+      - "A2P 10DLC registration process takes 1-4 weeks for US numbers"
+      - "Trial accounts can only send to verified phone numbers"
+      - "Auth Token must be kept secret — leaked tokens allow full account access"
+      - "International SMS delivery is unreliable in some regions"
+      - "SMS has 160 character limit per segment (70 for Unicode)"
+
+    alternative_providers:
+      - name: "Vonage (Nexmo)"
+        nuget: "Vonage"
+        notes: "Similar pricing and capabilities. REST API with C# SDK."
+      - name: "AWS SNS"
+        nuget: "AWSSDK.SimpleNotificationService"
+        notes: "Pay-per-use. Good for AWS-heavy stacks. No dedicated phone number management."
+
+  # =============================================================================
+  # PROVIDER 4: MICROSOFT TEAMS (Workflows / Power Automate Webhooks)
+  # =============================================================================
+  - name: "Microsoft Teams (Workflows)"
+    viability: "Ship Now"
+    onboarding_complexity: "Low"
+    cost: "Free"
+    authentication_model: "Webhook URL contains embedded authentication token — keep URL secret"
+    description: >
+      Microsoft Teams receives notifications via Workflows (Power Automate), which
+      replaced the deprecated O365 Connectors. Users create a workflow in Teams using
+      the "When a Teams webhook request is received" trigger, which generates a unique
+      webhook URL. The app POSTs Adaptive Card JSON to this URL. No NuGet package
+      required — plain HttpClient.
+
+    integration_pattern:
+      - "User creates a Workflow in Teams channel: 'When a Teams webhook request is received'"
+      - "Teams generates unique webhook URL (contains embedded auth)"
+      - "User pastes webhook URL into provider configuration in the stock monitor"
+      - "App POSTs Adaptive Card JSON payload to webhook URL via HttpClient"
+      - "Teams renders the card in the channel"
+
+    o365_connector_deprecation: >
+      Microsoft 365 Connectors (Office 365 Connectors) are nearing deprecation.
+      Creation of new connectors is blocked. The recommended replacement is Power
+      Automate Workflows with the "When a Teams webhook request is received" trigger.
+      Workflows support both Adaptive Cards and Message Card format.
+
+    nuget_packages: null
+    notes_on_packages: "No NuGet package needed — plain HttpClient POST with JSON body"
+
+    adaptive_card_example: |
+      {
+        "type": "message",
+        "attachments": [{
+          "contentType": "application/vnd.microsoft.card.adaptive",
+          "content": {
+            "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+            "type": "AdaptiveCard",
+            "version": "1.4",
+            "body": [
+              { "type": "TextBlock", "text": "Stock Alert", "weight": "Bolder", "size": "Medium" },
+              { "type": "TextBlock", "text": "Product X is now **In Stock**", "wrap": true },
+              { "type": "FactSet", "facts": [
+                { "title": "Product:", "value": "Product X" },
+                { "title": "Status:", "value": "In Stock" },
+                { "title": "Time:", "value": "2026-03-23 14:30 UTC" }
+              ]}
+            ],
+            "actions": [
+              { "type": "Action.OpenUrl", "title": "View Product", "url": "https://store.example.com/product-x" }
+            ]
+          }
+        }]
+      }
+
+    rate_limits: >
+      - 4 requests per second per webhook (429 if exceeded)
+      - Message size limit: 28 KB
+      - Retry strategy: exponential backoff on HTTP 429
+
+    risks_and_gotchas:
+      - "Workflows are linked to specific users (owners), not teams/channels — becomes orphaned if owner leaves"
+      - "Admins should assign co-owners to prevent orphaned workflows"
+      - "Webhook URL contains embedded auth — treat as a secret"
+      - "Button rendering not supported in Message Card format (use Adaptive Cards)"
+      - "Private channel support for flow bot posting is still under development"
+      - "Requires user to have access to Power Automate to create the workflow"
+      - "GCC High / DoD environments: only Incoming Webhook connector type available"
+
+  # =============================================================================
+  # PROVIDER 5: DISCORD (Webhook API)
+  # =============================================================================
+  - name: "Discord (Webhook)"
+    viability: "Ship Now"
+    onboarding_complexity: "None"
+    cost: "Free"
+    authentication_model: "Webhook URL contains embedded token — no additional auth; keep URL secret"
+    description: >
+      Discord webhooks are the simplest notification provider. Create a webhook in a
+      Discord channel, POST JSON to the webhook URL. Supports rich embeds with title,
+      description, color, thumbnail, fields, footer, and file attachments.
+      No bot user or SDK required.
+
+    integration_pattern:
+      - "User creates Incoming Webhook in Discord channel settings"
+      - "User copies webhook URL: https://discord.com/api/webhooks/{id}/{token}"
+      - "User pastes webhook URL into provider config in stock monitor"
+      - "App POSTs JSON with content and/or embeds to webhook URL via HttpClient"
+      - "Discord renders message in channel"
+
+    api_endpoint: "POST /api/webhooks/{webhook.id}/{webhook.token}"
+
+    nuget_packages: null
+    notes_on_packages: "No NuGet package needed — plain HttpClient POST with JSON body"
+
+    embed_example: |
+      {
+        "content": null,
+        "embeds": [{
+          "title": "Stock Alert: Product X",
+          "description": "Product X is now **In Stock**!",
+          "color": 3066993,
+          "thumbnail": { "url": "https://store.example.com/images/product-x.jpg" },
+          "fields": [
+            { "name": "Store", "value": "Example Store", "inline": true },
+            { "name": "Status", "value": "In Stock ✅", "inline": true },
+            { "name": "Price", "value": "€29.99", "inline": true }
+          ],
+          "footer": { "text": "Stock Monitor • 2026-03-23 14:30 UTC" },
+          "url": "https://store.example.com/product-x"
+        }]
+      }
+
+    request_payload:
+      content: "string — message text, up to 2000 characters"
+      username: "string — override webhook display name (optional)"
+      avatar_url: "string — override webhook avatar (optional)"
+      embeds: "array of up to 10 embed objects"
+      files: "file attachments via multipart/form-data (optional)"
+
+    rate_limits: >
+      - 5 requests per 2 seconds per webhook
+      - 30 requests per minute per webhook
+      - Discord returns 429 Too Many Requests with Retry-After header
+      - Global rate limit: 50 requests per second across all endpoints
+
+    risks_and_gotchas:
+      - "Webhook URL is the sole authentication — if leaked, anyone can post to the channel"
+      - "No delivery confirmation — fire-and-forget (unless ?wait=true query param is used)"
+      - "Embed objects have a combined limit of 6000 characters across all fields"
+      - "Webhook names cannot contain 'discord' or 'clyde' (case-insensitive)"
+      - "Discord may strip certain characters from message content"
+      - "Webhooks can be deleted by anyone with MANAGE_WEBHOOKS permission in the channel"
+
+  # =============================================================================
+  # PROVIDER 6: WHATSAPP (Meta Cloud API)
+  # =============================================================================
+  - name: "WhatsApp (Meta Cloud API)"
+    viability: "Defer"
+    onboarding_complexity: "Prohibitive"
+    cost: "Paid"
+    authentication_model: "Bearer token (System User Token) from Meta for Developers portal"
+    description: >
+      WhatsApp Business Platform / Cloud API allows sending messages via Meta's hosted
+      infrastructure. Requires a Facebook Business account, WhatsApp Business account,
+      business verification, and pre-approved message templates for initiating
+      conversations. The compliance burden is extremely high for a personal project.
+
+    integration_pattern:
+      - "Register on Meta for Developers, create Facebook App with WhatsApp product"
+      - "Complete business verification (document submission, review process)"
+      - "Create and submit Message Templates for approval (stock notification template)"
+      - "Use permanent System User Token for API authentication"
+      - "POST to /v21.0/{phone-number-id}/messages with template or session message"
+      - "Handle webhooks for delivery status updates"
+
+    api_endpoint: "POST https://graph.facebook.com/v21.0/{phone-number-id}/messages"
+
+    nuget_packages: null
+    notes_on_packages: "No official NuGet SDK from Meta — use HttpClient with JSON body"
+
+    message_types:
+      template_messages: >
+        Required for initiating conversations (outside 24h window). Must be
+        pre-approved by Meta. Variables can be injected for product name, status, etc.
+        Approval typically takes minutes-to-hours but can take days.
+      session_messages: >
+        Free-form messages allowed within 24 hours of the user's last message.
+        No template required. Text, media, interactive messages supported.
+
+    rate_limits: >
+      - Tiered by quality rating (Green/Yellow/Red)
+      - New accounts: 250 business-initiated conversations/24h
+      - Verified accounts: 1,000 → 10,000 → 100,000 → unlimited (tier progression)
+      - Session messages: no extra limit within the 24h window
+
+    cost_model: >
+      - Per-conversation pricing (not per-message)
+      - Business-initiated: ~$0.005-$0.10 depending on country
+      - User-initiated: ~$0.003-$0.05 depending on country
+      - First 1,000 service conversations/month are free
+      - Phone number hosting: free with Cloud API
+
+    compliance:
+      - "Business verification required (legal documents, business address)"
+      - "Message templates must be approved before use"
+      - "24h messaging window — cannot message users outside this window without template"
+      - "Users must opt in to receive messages"
+      - "Meta Platform Terms and WhatsApp Business Policy apply"
+      - "Data residency considerations (EU/US)"
+
+    risks_and_gotchas:
+      - "Business verification can take days to weeks"
+      - "Template approval adds friction to iteration"
+      - "24h window means you cannot send follow-up notifications unless user replies"
+      - "Quality rating drops if users block or report your messages → reduced rate limits"
+      - "Permanent token management requires Facebook System Users (complex)"
+      - "API version changes frequently (v21.0 current) — breaking changes possible"
+      - "For a personal stock monitor, the overhead far exceeds the benefit"
+      - "WhatsApp Business API is designed for businesses, not personal use"
+
+    realistic_assessment: >
+      WhatsApp is impractical for a personal stock monitor. The business verification,
+      template approval, and ongoing compliance requirements make it suitable only for
+      commercial applications with a dedicated ops team. Defer indefinitely.
+
+  # =============================================================================
+  # PROVIDER 7: FACEBOOK MESSENGER (Meta Send API)
+  # =============================================================================
+  - name: "Facebook Messenger (Meta Send API)"
+    viability: "Defer"
+    onboarding_complexity: "Prohibitive"
+    cost: "Free (platform is free, but compliance costs are high)"
+    authentication_model: "Page Access Token via Facebook Login for Business (OAuth)"
+    description: >
+      Facebook Messenger Platform allows businesses to send messages via Page-scoped
+      messaging. Requires a Facebook App, Facebook Page, webhook setup, Facebook Login
+      for Business implementation, App Review, and Business Verification. The platform
+      is free but the compliance and setup burden is extreme for a personal project.
+
+    integration_pattern:
+      - "Register as Meta Developer, create Facebook App"
+      - "Create or link Facebook Page"
+      - "Implement Facebook Login for Business with required permissions"
+      - "Set up Webhooks to receive message events"
+      - "Pass App Review for pages_messaging permission"
+      - "Complete Business Verification"
+      - "POST to /me/messages with page access token"
+
+    api_endpoint: "POST https://graph.facebook.com/v21.0/me/messages"
+
+    nuget_packages: null
+    notes_on_packages: "No official NuGet SDK from Meta — use HttpClient with JSON body"
+
+    required_permissions:
+      - "pages_show_list"
+      - "pages_manage_metadata"
+      - "pages_messaging"
+      - "pages_read_engagement"
+      - "business_management"
+
+    messaging_window: >
+      Standard messaging: 24 hours from user's last message. After 24h, the business
+      cannot send messages unless using a Message Tag. The 'human_agent' tag extends
+      the window to 7 days but is for live agent support only, not automated notifications.
+      There is no tag that permits automated stock notifications outside the 24h window.
+
+    rate_limits: >
+      Send API:
+      - 300 calls/second per Page for text, links, reactions, stickers
+      - 10 calls/second per Page for audio/video content
+      - Overall API limit: 200 × (number of engaged users) calls per 24 hours
+      High-volume: 40+ messages/second causes inbox to stop displaying new messages.
+
+    risks_and_gotchas:
+      - "24h messaging window is the killer limitation — stock alerts are by definition out-of-window"
+      - "No valid Message Tag exists for automated stock notifications"
+      - "App Review is mandatory for Advanced Access (sending to non-developers)"
+      - "Business Verification is mandatory for production use"
+      - "Facebook Platform Policy is strict — violations can get the app banned"
+      - "Page-scoped IDs complicate user identity management"
+      - "Handover Protocol required if multiple apps handle messages"
+      - "The person must message the Page first — business cannot initiate conversation"
+
+    realistic_assessment: >
+      Facebook Messenger is categorically unsuitable for a stock monitor notification
+      system. The 24h messaging window, requirement for user-initiated conversation,
+      and lack of a valid Message Tag for automated notifications mean stock alerts
+      simply cannot be delivered reliably. The App Review and Business Verification
+      overhead is prohibitive for a personal project. Do not implement.
+
+# =============================================================================
+# PROVIDER ABSTRACTION PATTERN
+# =============================================================================
+abstraction_pattern:
+  description: >
+    A clean abstraction layer allows multiple notification providers to be registered
+    independently via DI, each with their own configuration, enable/disable toggle,
+    and retry policies. The pattern supports multiple instances of the same provider
+    type (e.g., two Discord webhooks for different channels).
+
+  interface_design:
+    INotificationProvider:
+      methods:
+        - name: "SendAsync"
+          signature: "Task<NotificationResult> SendAsync(NotificationMessage message, CancellationToken ct)"
+          description: "Sends a notification and returns a typed delivery result"
+        - name: "ValidateConfigurationAsync"
+          signature: "Task<bool> ValidateConfigurationAsync(CancellationToken ct)"
+          description: "Validates provider-specific configuration (e.g., webhook URL is reachable)"
+      properties:
+        - name: "ProviderType"
+          type: "string"
+          description: "Provider type identifier (browser, email, sms, teams, discord, whatsapp, messenger)"
+        - name: "DisplayName"
+          type: "string"
+          description: "User-friendly name for this provider instance"
+        - name: "IsEnabled"
+          type: "bool"
+          description: "Whether this provider instance is currently active"
+
+    NotificationMessage:
+      properties:
+        - "Title: string — notification title / subject"
+        - "Body: string — plain text body"
+        - "HtmlBody: string? — HTML body (email)"
+        - "Url: string? — link to product/page"
+        - "ImageUrl: string? — product image URL"
+        - "Metadata: Dictionary<string, string> — provider-specific data (product name, store, price, stock state)"
+
+    NotificationResult:
+      properties:
+        - "Success: bool"
+        - "ProviderName: string"
+        - "ErrorMessage: string?"
+        - "ShouldRetry: bool"
+        - "Timestamp: DateTimeOffset"
+
+  configuration_model:
+    description: >
+      Each provider instance is configured via a JSON settings object stored in the
+      database. The settings schema is provider-specific but follows a common envelope.
+    envelope:
+      - "Id: Guid — unique instance identifier"
+      - "ProviderType: string — one of [browser, email, sms, teams, discord, whatsapp, messenger]"
+      - "DisplayName: string — user-friendly label (e.g., 'Work Email', 'Gaming Discord')"
+      - "Enabled: bool — active/inactive toggle (retains config when disabled)"
+      - "Settings: JsonDocument — provider-specific configuration (typed per provider)"
+      - "CreatedAt: DateTimeOffset"
+      - "UpdatedAt: DateTimeOffset"
+    example_settings_per_provider:
+      browser: "{ vapidPublicKey, vapidPrivateKey, vapidSubject }"
+      email: "{ host, port, useTls, username, password, fromAddress, fromDisplayName }"
+      sms: "{ accountSid, authToken, fromPhoneNumber }"
+      teams: "{ webhookUrl }"
+      discord: "{ webhookUrl, username?, avatarUrl? }"
+      whatsapp: "{ phoneNumberId, accessToken, templateName, templateLanguage }"
+      messenger: "{ pageAccessToken, pageId }"
+
+  di_registration_pattern: >
+    Providers are registered as keyed services in .NET 10 DI using the
+    AddKeyedScoped/AddKeyedTransient pattern, or via a factory that resolves
+    provider instances from configuration. A INotificationDispatcher orchestrates
+    sending to all enabled providers. Each provider instance gets its own
+    HttpClient via IHttpClientFactory (named clients per provider type).
+
+  retry_policy: >
+    Per-provider retry with Polly:
+    - Transient HTTP errors (408, 429, 5xx): retry with exponential backoff
+    - 429 with Retry-After header: respect the header value
+    - Non-retryable: 400 Bad Request, 401 Unauthorized, 403 Forbidden, 410 Gone
+    - Max retries: 3 per provider per notification
+    - Circuit breaker: open after 5 consecutive failures, half-open after 60s
+
+  delivery_tracking: >
+    NotificationResult objects are persisted to a NotificationLog table.
+    Fields: Id, NotificationId, ProviderId, ProviderType, Success, ErrorMessage,
+    AttemptCount, SentAt. Enables audit trail and debugging.
+
+# =============================================================================
+# COMPARATIVE SUMMARY
+# =============================================================================
+comparative_summary:
+  ship_now:
+    - provider: "Browser Push"
+      reason: "Free, no third-party, VAPID-based, default-enabled, excellent UX"
+    - provider: "Email (SMTP)"
+      reason: "Universal, MailKit is mature and stable, low setup with any SMTP server"
+    - provider: "Teams (Workflows)"
+      reason: "Free, simple webhook POST, Adaptive Cards for rich notifications"
+    - provider: "Discord"
+      reason: "Simplest integration, free, no SDK needed, rich embed support"
+
+  conditional:
+    - provider: "SMS (Twilio)"
+      reason: "Paid per-message, A2P compliance adds complexity; viable if user accepts cost"
+
+  defer:
+    - provider: "WhatsApp"
+      reason: "Prohibitive business verification and template approval for personal project"
+    - provider: "Facebook Messenger"
+      reason: "24h messaging window makes automated stock alerts impossible; App Review required"
+
+  recommended_implementation_order:
+    - "1. Browser Push (default, enabled out of box)"
+    - "2. Discord (simplest webhook, seconds to set up)"
+    - "3. Email (most universally useful)"
+    - "4. Teams (useful for work/professional context)"
+    - "5. SMS (add when user demand justifies cost)"
+    - "6. WhatsApp (defer — revisit if project becomes commercial)"
+    - "7. Facebook Messenger (defer indefinitely — architectural mismatch)"
+
+# =============================================================================
+# OPEN QUESTIONS
+# =============================================================================
+open_questions:
+  - question: "Should the app support multiple SMTP accounts simultaneously?"
+    context: >
+      A user might want to send from a personal Gmail and a work Outlook account.
+      The multi-instance config model supports this but email template branding
+      might need per-instance customization.
+
+  - question: "How should VAPID keys be managed for browser push?"
+    context: >
+      VAPID keys must be consistent across app restarts. Options: generate on first
+      run and store in DB, provide via environment variables, or configure in
+      appsettings. The first option is simplest for single-instance deployment.
+
+  - question: "Should the Twilio provider support voice calls as a notification type?"
+    context: >
+      Twilio NuGet supports both SMS and Voice. For high-priority stock alerts,
+      a phone call might be desirable. This would add complexity to the provider
+      configuration model.
+
+  - question: "What is the Teams Workflow webhook URL format?"
+    context: >
+      The exact URL structure for Power Automate workflow webhooks differs from
+      the old O365 Connector format. End users generate this URL within Teams
+      and paste it into the app config. The app does not need to know the format.
+
+  - question: "Should notification deduplication be per-provider or global?"
+    context: >
+      If a product goes in/out of stock rapidly, the same notification might
+      be sent multiple times. Deduplication could happen at the dispatcher level
+      (suppress duplicates within N minutes) or per-provider.
+
+# =============================================================================
+# GAPS
+# =============================================================================
+gaps:
+  - area: "WebPush NuGet package comparison"
+    description: >
+      Could not perform live API tests to compare WebPush (1.0.12) vs Lib.Net.Http.WebPush
+      (3.3.1) in terms of .NET 10 compatibility. Version pinning should be verified
+      during implementation.
+    impact: "Low — Lib.Net.Http.WebPush is clearly the better choice based on recency."
+
+  - area: "WhatsApp Cloud API message template JSON schema"
+    description: >
+      WhatsApp Cloud API reference page was blocked by cookie consent wall during
+      research. The exact JSON payload schema for template messages was not captured.
+    impact: "Minimal — WhatsApp is rated 'Defer' and detailed API research is not needed now."
+
+  - area: "Discord rate limit enforcement specifics"
+    description: >
+      Discord's official docs do not publish exact rate limit numbers for webhook
+      execute endpoints. The 5/2s and 30/min figures come from community documentation
+      and may not be exactly current.
+    impact: "Low — the app should implement Retry-After header handling regardless of exact numbers."
+
+  - area: "Twilio A2P 10DLC registration timeline"
+    description: >
+      The current A2P 10DLC registration process timeline and requirements may have
+      changed since last verified. This should be checked when SMS implementation begins.
+    impact: "Low — SMS is 'Conditional' and this is only relevant if SMS is implemented."

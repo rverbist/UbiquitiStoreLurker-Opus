@@ -1,0 +1,1198 @@
+plan_id: storefront-stock-monitor-opus-20260323
+objective: >
+  Research observability and real-time communication patterns for a .NET 10 ASP.NET
+  minimal web app: SignalR for real-time UI updates, Serilog CLEF for structured logging,
+  prometheus-net for Prometheus metrics, ASP.NET health checks, optional .NET Aspire
+  integration for development, and Grafana dashboard provisioning.
+focus_area: "SignalR + Prometheus + Serilog CLEF + Health Checks + .NET Aspire"
+created_at: "2026-03-23"
+created_by: "GitHub Copilot (gem-researcher)"
+status: completed
+
+tldr: |
+  - SignalR is built into ASP.NET Core 10 — no extra NuGet needed. Strongly-typed Hub<T> with IHubContext<THub, T> injection into background services is the recommended pattern for pushing stock changes from the poller.
+  - @microsoft/signalr npm client supports HubConnectionBuilder with withAutomaticReconnect([0, 2000, 10000, 30000]) and lifecycle events (onreconnecting, onreconnected, onclose). Vue 3 composable pattern wraps the connection.
+  - Serilog with CLEF uses 5 NuGet packages (Serilog.AspNetCore, Settings.Configuration, Sinks.Console, Sinks.File, Formatting.Compact). Bootstrap logger → UseSerilog() → UseSerilogRequestLogging() pipeline; CLEF produces JSON-lines output with @t, @mt, @l properties.
+  - prometheus-net v8.2.1 (latest) provides MapMetrics() endpoint and UseHttpMetrics(). Custom metrics: counter, gauge, histogram via static readonly fields with Metrics.CreateX(). Health checks can forward to Prometheus via ForwardToPrometheus().
+  - ASP.NET health checks via AddHealthChecks() + MapHealthChecks("/api/health") with custom IHealthCheck implementations for poller heartbeat, DB, and volume access. Separate liveness/readiness probes supported.
+  - .NET Aspire ServiceDefaults can be used WITHOUT AppHost orchestration — just dotnet new aspire-servicedefaults, reference it, call ConfigureOpenTelemetry(). Provides OTel logging/metrics/tracing + OTLP exporter to standalone Aspire Dashboard.
+  - Grafana dashboard JSON can be auto-provisioned via mounted file in the existing monitoring stack at /opt/docker/infra/monitoring/.
+
+research_metadata:
+  methodology: >
+    Complex 3-pass research: (1) Microsoft Learn docs search for SignalR hubs, IHubContext,
+    background services, health checks, Aspire ServiceDefaults; (2) Microsoft code sample
+    search for SignalR patterns, health check implementations, Aspire configuration;
+    (3) Context7 docs for Serilog.AspNetCore and Serilog CLEF formatting; GitHub README
+    fetch for prometheus-net API patterns. Cross-referenced all findings for .NET 10
+    compatibility and minimal API patterns.
+  tools_used:
+    - mcp_microsoftdocs_microsoft_docs_search
+    - mcp_microsoftdocs_microsoft_code_sample_search
+    - mcp_io_github_ups_resolve-library-id
+    - mcp_io_github_ups_query-docs
+    - fetch_webpage
+    - read_file
+  scope: >
+    Seven topic areas: SignalR server, SignalR JS client, Serilog CLEF, prometheus-net,
+    ASP.NET health checks, .NET Aspire, Grafana dashboard provisioning. Each researched
+    with version verification, code patterns, and integration considerations.
+  confidence: high
+  coverage: 92
+
+# =============================================================================
+# TOPIC 1: SIGNALR SERVER-SIDE (.NET 10)
+# =============================================================================
+
+signalr_server:
+  summary: >
+    ASP.NET Core SignalR is built into the shared framework — no additional NuGet
+    package is required. It provides real-time bidirectional communication between
+    server and clients using WebSockets (preferred), Server-Sent Events, or Long
+    Polling as fallback transports.
+
+  package: "Built into Microsoft.AspNetCore.App (no separate NuGet)"
+
+  setup_in_minimal_api: |
+    ```csharp
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Services.AddSignalR();
+    builder.Services.AddHostedService<StockPollerService>();
+
+    var app = builder.Build();
+
+    app.MapHub<UbiquitiStoreLurkerHub>("/api/hub/stock-monitor");
+
+    app.Run();
+    ```
+
+  hub_definition_patterns:
+    dynamic_hub: |
+      Dynamic hubs use string-based SendAsync calls. Simpler but no compile-time safety.
+      ```csharp
+      public class UbiquitiStoreLurkerHub : Hub
+      {
+          public async Task SendMessage(string method, object arg)
+              => await Clients.All.SendAsync(method, arg);
+      }
+      ```
+
+    strongly_typed_hub: |
+      Strongly-typed hubs use an interface for compile-time safety. This is the
+      RECOMMENDED pattern for this project.
+      ```csharp
+      public interface IUbiquitiStoreLurkerClient
+      {
+          Task StockStateChanged(StockStateDto state);
+          Task PollCompleted(PollResultDto result);
+          Task RequestLogEntry(RequestLogDto entry);
+          Task AlertTriggered(AlertDto alert);
+      }
+
+      public class UbiquitiStoreLurkerHub : Hub<IUbiquitiStoreLurkerClient>
+      {
+          // Client-callable methods (if needed):
+          public async Task JoinProductGroup(string productCode)
+              => await Groups.AddToGroupAsync(Context.ConnectionId, productCode);
+
+          public async Task LeaveProductGroup(string productCode)
+              => await Groups.RemoveFromGroupAsync(Context.ConnectionId, productCode);
+      }
+      ```
+
+  broadcasting_patterns:
+    to_all_clients: "await Clients.All.StockStateChanged(dto);"
+    to_specific_group: "await Clients.Group(productCode).StockStateChanged(dto);"
+    to_specific_connection: "await Clients.Client(connectionId).AlertTriggered(alert);"
+    to_caller_only: "await Clients.Caller.PollCompleted(result);"
+    to_all_except_caller: "await Clients.Others.RequestLogEntry(entry);"
+
+  ihubcontext_injection: |
+    Use IHubContext<THub, T> to push messages from background services (the poller).
+    Hubs are transient — never store state in hub properties or instantiate directly.
+    ```csharp
+    public class StockPollerService : BackgroundService
+    {
+        private readonly IHubContext<UbiquitiStoreLurkerHub, IUbiquitiStoreLurkerClient> _hubContext;
+        private readonly ILogger<StockPollerService> _logger;
+
+        public StockPollerService(
+            IHubContext<UbiquitiStoreLurkerHub, IUbiquitiStoreLurkerClient> hubContext,
+            ILogger<StockPollerService> logger)
+        {
+            _hubContext = hubContext;
+            _logger = logger;
+        }
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                var result = await PollProducts(stoppingToken);
+
+                // Push to all connected clients
+                await _hubContext.Clients.All.PollCompleted(result);
+
+                // Push state change to product-specific group
+                if (result.StateChanged)
+                    await _hubContext.Clients.Group(result.ProductCode)
+                        .StockStateChanged(result.NewState);
+
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
+        }
+    }
+    ```
+
+  scaling_notes: |
+    Single-instance deployment uses in-memory backplane (default). No Redis or
+    Azure SignalR Service needed. If scaled to multiple instances later, add
+    Redis backplane via:
+      builder.Services.AddSignalR().AddStackExchangeRedis(connectionString);
+
+  hub_options: |
+    ```csharp
+    builder.Services.AddSignalR().AddHubOptions<UbiquitiStoreLurkerHub>(options =>
+    {
+        options.EnableDetailedErrors = true; // Development only
+    });
+    ```
+
+  messagepack_protocol: |
+    Optional performance optimization — binary protocol instead of JSON.
+    NuGet: Microsoft.AspNetCore.SignalR.Protocols.MessagePack
+    ```csharp
+    builder.Services.AddSignalR().AddMessagePackProtocol();
+    ```
+    Client must also opt in: .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
+
+  stateful_reconnect: |
+    ASP.NET Core 8+ supports stateful reconnect (buffers messages during drops):
+    ```csharp
+    app.MapHub<UbiquitiStoreLurkerHub>("/api/hub/stock-monitor", options =>
+    {
+        options.AllowStatefulReconnects = true;
+    });
+    ```
+
+  references:
+    - url: "https://learn.microsoft.com/aspnet/core/signalr/hubs?view=aspnetcore-10.0"
+      title: "Use hubs in SignalR for ASP.NET Core"
+    - url: "https://learn.microsoft.com/aspnet/core/signalr/background-services?view=aspnetcore-10.0"
+      title: "Host ASP.NET Core SignalR in background services"
+    - url: "https://learn.microsoft.com/aspnet/core/signalr/hubcontext?view=aspnetcore-10.0"
+      title: "Send messages from outside a hub"
+
+# =============================================================================
+# TOPIC 2: SIGNALR JAVASCRIPT CLIENT (@microsoft/signalr)
+# =============================================================================
+
+signalr_client:
+  summary: >
+    The @microsoft/signalr npm package provides the JavaScript/TypeScript client
+    for ASP.NET Core SignalR. It supports automatic reconnection, transport
+    negotiation, and lifecycle event handling.
+
+  package: "@microsoft/signalr (npm)"
+  cdn_alternative: "https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"
+
+  connection_builder: |
+    ```javascript
+    import * as signalR from "@microsoft/signalr";
+
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/api/hub/stock-monitor")
+        .withAutomaticReconnect([0, 2000, 10000, 30000])
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+    ```
+
+  automatic_reconnect: |
+    withAutomaticReconnect() configures retry behavior after connection drops.
+
+    Default delays (no args): [0, 2000, 10000, 30000] ms — 4 attempts then gives up.
+    Custom delays: withAutomaticReconnect([0, 0, 10000]) — immediate retry twice, then 10s.
+
+    IMPORTANT: withAutomaticReconnect does NOT retry initial connection failures.
+    Initial start failures must be handled manually with a retry loop.
+
+  lifecycle_events: |
+    ```javascript
+    // Fires when connection is lost, before reconnect attempts start
+    connection.onreconnecting(error => {
+        console.warn("Connection lost. Reconnecting...", error);
+        // Disable UI elements, show reconnecting indicator
+    });
+
+    // Fires when reconnection succeeds — new connectionId provided
+    connection.onreconnected(connectionId => {
+        console.log("Reconnected with ID:", connectionId);
+        // Re-enable UI elements, hide reconnecting indicator
+    });
+
+    // Fires when all reconnect attempts fail or connection is stopped
+    connection.onclose(error => {
+        console.error("Connection closed permanently.", error);
+        // Show "connection lost" UI, offer manual retry button
+    });
+    ```
+
+  method_invocation: |
+    ```javascript
+    // Register server-to-client handlers
+    connection.on("StockStateChanged", (state) => {
+        // Update reactive store / UI with new stock state
+    });
+
+    connection.on("PollCompleted", (result) => {
+        // Update request log in UI
+    });
+
+    connection.on("AlertTriggered", (alert) => {
+        // Show notification toast
+    });
+
+    // Call server methods (client-to-server)
+    await connection.invoke("JoinProductGroup", productCode);
+    ```
+
+  start_with_retry: |
+    ```javascript
+    async function startConnection() {
+        try {
+            await connection.start();
+            console.log("SignalR connected.");
+        } catch (err) {
+            console.error("SignalR connection failed:", err);
+            setTimeout(startConnection, 5000);
+        }
+    }
+
+    startConnection();
+    ```
+
+  transport_negotiation: |
+    SignalR automatically negotiates the best transport:
+    1. WebSockets (preferred — full duplex, low latency)
+    2. Server-Sent Events (fallback — server-to-client only, uses HTTP)
+    3. Long Polling (last resort — higher latency, more overhead)
+
+    For this single-instance Docker app, WebSockets will be used in practice.
+    No sticky sessions needed since there's only one server.
+
+  vue3_composable_pattern: |
+    ```typescript
+    // composables/useSignalR.ts
+    import { ref, onMounted, onUnmounted } from "vue";
+    import * as signalR from "@microsoft/signalr";
+
+    export function useSignalR(hubUrl: string) {
+        const connection = ref<signalR.HubConnection | null>(null);
+        const connectionState = ref<string>("Disconnected");
+
+        const build = () => {
+            const conn = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl)
+                .withAutomaticReconnect([0, 2000, 10000, 30000])
+                .build();
+
+            conn.onreconnecting(() => { connectionState.value = "Reconnecting"; });
+            conn.onreconnected(() => { connectionState.value = "Connected"; });
+            conn.onclose(() => { connectionState.value = "Disconnected"; });
+
+            return conn;
+        };
+
+        const start = async () => {
+            connection.value = build();
+            try {
+                await connection.value.start();
+                connectionState.value = "Connected";
+            } catch {
+                connectionState.value = "Disconnected";
+                setTimeout(start, 5000);
+            }
+        };
+
+        const on = (method: string, callback: (...args: any[]) => void) => {
+            connection.value?.on(method, callback);
+        };
+
+        const invoke = async (method: string, ...args: any[]) => {
+            return connection.value?.invoke(method, ...args);
+        };
+
+        onMounted(() => start());
+        onUnmounted(() => connection.value?.stop());
+
+        return { connection, connectionState, on, invoke };
+    }
+    ```
+
+  references:
+    - url: "https://learn.microsoft.com/aspnet/core/signalr/javascript-client?view=aspnetcore-10.0"
+      title: "ASP.NET Core SignalR JavaScript client"
+
+# =============================================================================
+# TOPIC 3: SERILOG WITH CLEF (Compact Log Event Format)
+# =============================================================================
+
+serilog_clef:
+  summary: >
+    Serilog with CLEF produces machine-readable JSON-lines log output. The Compact
+    Log Event Format uses short property names (@t, @mt, @l, @x) to minimize log
+    volume while remaining fully structured and queryable.
+
+  nuget_packages:
+    - name: "Serilog.AspNetCore"
+      purpose: "ASP.NET Core integration (UseSerilog, request logging middleware)"
+      notes: "Brings in Serilog core + Microsoft.Extensions.Logging integration"
+
+    - name: "Serilog.Settings.Configuration"
+      purpose: "Read Serilog config from appsettings.json / IConfiguration"
+
+    - name: "Serilog.Sinks.Console"
+      purpose: "Console output (Docker stdout/stderr)"
+
+    - name: "Serilog.Sinks.File"
+      purpose: "Rolling file output to /logs volume"
+
+    - name: "Serilog.Formatting.Compact"
+      purpose: "CompactJsonFormatter (CLEF) and RenderedCompactJsonFormatter"
+
+  clef_format_explanation: |
+    CLEF (Compact Log Event Format) is a JSON-lines format where each log event
+    is a single JSON object on one line. Key properties use @ prefix:
+
+      @t  — Timestamp (ISO 8601, UTC)
+      @mt — Message template (with placeholders, not rendered)
+      @m  — Rendered message (only with RenderedCompactJsonFormatter)
+      @l  — Level (omitted when Information — the default)
+      @x  — Exception (full stack trace)
+      @r  — Renderings array (format-specific renderings)
+      @i  — Event type hash (32-bit MurmurHash of message template)
+
+    All structured properties appear as top-level JSON keys:
+
+    Example CLEF line:
+    {"@t":"2026-03-23T14:30:00.123Z","@mt":"Poll completed for {ProductCode} in {Duration:0.00}ms","ProductCode":"SKU-001","Duration":245.67,"StatusCode":200}
+
+    Benefits:
+    - Machine-readable (grep, jq, Seq, Loki can parse directly)
+    - Compact (short keys, no rendered message by default)
+    - Structured (all properties preserved as typed values)
+    - Log volume is ~30-50% smaller than traditional JSON formatters
+
+  bootstrap_logger_pattern: |
+    Two-stage initialization catches startup errors before the host is built:
+    ```csharp
+    // Program.cs — Bootstrap logger for startup errors
+    using Serilog;
+
+    Log.Logger = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateBootstrapLogger();
+
+    try
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddSerilog((services, lc) => lc
+            .ReadFrom.Configuration(builder.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .WriteTo.Console(new CompactJsonFormatter())
+            .WriteTo.File(
+                new CompactJsonFormatter(),
+                path: "/logs/stock-monitor-.clef",
+                rollingInterval: RollingInterval.Day,
+                fileSizeLimitBytes: 50_000_000,    // 50 MB per file
+                retainedFileCountLimit: 14,         // 14 days
+                rollOnFileSizeLimit: true,
+                shared: true));
+
+        var app = builder.Build();
+        app.UseSerilogRequestLogging();
+
+        // ... configure endpoints ...
+
+        app.Run();
+    }
+    catch (Exception ex)
+    {
+        Log.Fatal(ex, "Application terminated unexpectedly");
+    }
+    finally
+    {
+        await Log.CloseAndFlushAsync();
+    }
+    ```
+
+  appsettings_configuration: |
+    ```json
+    {
+      "Serilog": {
+        "MinimumLevel": {
+          "Default": "Information",
+          "Override": {
+            "Microsoft.AspNetCore": "Warning",
+            "Microsoft.AspNetCore.SignalR": "Information",
+            "Microsoft.EntityFrameworkCore": "Warning",
+            "Microsoft.EntityFrameworkCore.Database.Command": "Warning",
+            "System.Net.Http.HttpClient": "Warning"
+          }
+        },
+        "WriteTo": [
+          {
+            "Name": "Console",
+            "Args": {
+              "formatter": "Serilog.Formatting.Compact.CompactJsonFormatter, Serilog.Formatting.Compact"
+            }
+          },
+          {
+            "Name": "File",
+            "Args": {
+              "path": "/logs/stock-monitor-.clef",
+              "formatter": "Serilog.Formatting.Compact.CompactJsonFormatter, Serilog.Formatting.Compact",
+              "rollingInterval": "Day",
+              "fileSizeLimitBytes": 50000000,
+              "retainedFileCountLimit": 14,
+              "rollOnFileSizeLimit": true
+            }
+          }
+        ],
+        "Enrich": ["FromLogContext"]
+      }
+    }
+    ```
+
+  request_logging_middleware: |
+    UseSerilogRequestLogging() replaces default ASP.NET Core request logging with
+    a single structured log event per request (instead of multiple events):
+    ```csharp
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+            diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+        };
+    });
+    ```
+
+    Example CLEF output for a request:
+    {"@t":"2026-03-23T14:30:00.123Z","@mt":"HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms","RequestMethod":"GET","RequestPath":"/api/products","StatusCode":200,"Elapsed":12.34,"RequestId":"0HN...","RequestHost":"localhost:8080"}
+
+  structured_logging_best_practices: |
+    DO use message templates with named placeholders:
+      _logger.LogInformation("Poll completed for {ProductCode} with status {StockState}", code, state);
+
+    DO NOT use string interpolation (loses structure):
+      _logger.LogInformation($"Poll completed for {code} with status {state}");  // BAD
+
+    DO use semantic property names that are consistent across the codebase:
+      ProductCode, StockState, PollDuration, NotificationType, ErrorMessage
+
+  references:
+    - url: "https://github.com/serilog/serilog-aspnetcore"
+      title: "Serilog.AspNetCore README"
+    - url: "https://github.com/serilog/serilog-formatting-compact"
+      title: "Serilog.Formatting.Compact (CLEF format)"
+    - url: "https://clef-to.github.io/"
+      title: "CLEF format specification"
+
+# =============================================================================
+# TOPIC 4: PROMETHEUS METRICS (prometheus-net)
+# =============================================================================
+
+prometheus_metrics:
+  summary: >
+    prometheus-net v8.2.1 is the de-facto standard .NET library for Prometheus
+    instrumentation. It provides ASP.NET Core middleware for HTTP metrics export,
+    custom metric types (Counter, Gauge, Histogram, Summary), and health check
+    integration. Highly performant: 261M counter inc/s, 105M histogram obs/s.
+
+  nuget_packages:
+    - name: "prometheus-net.AspNetCore"
+      version: "8.2.1"
+      purpose: "ASP.NET Core middleware: MapMetrics(), UseHttpMetrics()"
+
+    - name: "prometheus-net.AspNetCore.HealthChecks"
+      version: "8.2.1"
+      purpose: "Forward ASP.NET health check status to Prometheus gauge"
+
+  setup_in_minimal_api: |
+    ```csharp
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Services.AddHealthChecks()
+        .AddCheck<PollerHealthCheck>("poller")
+        .AddCheck<DatabaseHealthCheck>("database")
+        .ForwardToPrometheus();  // from prometheus-net.AspNetCore.HealthChecks
+
+    var app = builder.Build();
+
+    app.UseHttpMetrics(options =>
+    {
+        options.ReduceStatusCodeCardinality();  // 200,201 → 2xx
+    });
+
+    app.MapMetrics("/api/metrics");  // Prometheus scrape endpoint
+    app.MapHealthChecks("/api/health");
+
+    app.Run();
+    ```
+
+  custom_metrics_for_this_app: |
+    ```csharp
+    using Prometheus;
+
+    public static class UbiquitiStoreLurkerMetrics
+    {
+        // Counter: total polls executed, labelled by product and result status
+        public static readonly Counter PollsTotal = Metrics
+            .CreateCounter(
+                "stock_monitor_polls_total",
+                "Total number of stock polls executed.",
+                labelNames: new[] { "product_code", "status" });
+
+        // Histogram: poll duration in seconds
+        public static readonly Histogram PollDuration = Metrics
+            .CreateHistogram(
+                "stock_monitor_poll_duration_seconds",
+                "Duration of stock poll HTTP requests in seconds.",
+                new HistogramConfiguration
+                {
+                    Buckets = Histogram.ExponentialBuckets(0.01, 2, 12)
+                    // 10ms, 20ms, 40ms, ..., ~40s
+                });
+
+        // Gauge: current stock state per product (0=unknown, 1=in_stock, 2=out_of_stock, 3=preorder)
+        public static readonly Gauge StockState = Metrics
+            .CreateGauge(
+                "stock_monitor_stock_state",
+                "Current stock state for each monitored product.",
+                labelNames: new[] { "product_code", "state_name" });
+
+        // Counter: notifications sent, labelled by provider type and delivery status
+        public static readonly Counter NotificationsSent = Metrics
+            .CreateCounter(
+                "stock_monitor_notifications_sent_total",
+                "Total notifications sent.",
+                labelNames: new[] { "provider_type", "status" });
+
+        // Gauge: number of products in the monitoring queue
+        public static readonly Gauge QueueDepth = Metrics
+            .CreateGauge(
+                "stock_monitor_queue_depth",
+                "Number of products currently being monitored.");
+    }
+    ```
+
+  usage_in_poller: |
+    ```csharp
+    // In the polling loop:
+    using (UbiquitiStoreLurkerMetrics.PollDuration.NewTimer())
+    {
+        var response = await httpClient.GetAsync(product.Url, ct);
+        UbiquitiStoreLurkerMetrics.PollsTotal
+            .WithLabels(product.Code, response.IsSuccessStatusCode ? "success" : "error")
+            .Inc();
+    }
+
+    // After state detection:
+    UbiquitiStoreLurkerMetrics.StockState
+        .WithLabels(product.Code, newState.ToString().ToLowerInvariant())
+        .Set(1);
+
+    // After notification:
+    UbiquitiStoreLurkerMetrics.NotificationsSent
+        .WithLabels(provider.Type, success ? "success" : "failure")
+        .Inc();
+    ```
+
+  built_in_http_metrics: |
+    UseHttpMetrics() automatically exports:
+    - http_requests_in_progress (gauge)        — concurrent requests
+    - http_requests_received_total (counter)   — total requests by method/status/endpoint
+    - http_request_duration_seconds (histogram) — request duration distribution
+
+  health_check_forwarding: |
+    ForwardToPrometheus() exports:
+    - aspnetcore_healthcheck_status (gauge) — 0=Unhealthy, 0.5=Degraded, 1=Healthy
+      Label: name (the registered health check name)
+
+  scrape_endpoint: |
+    MapMetrics() defaults to /metrics path. For this app, use /api/metrics to
+    keep all API endpoints under /api/ prefix. The endpoint returns text/plain
+    in Prometheus exposition format by default.
+
+    Prometheus scrape config (add to existing prometheus.yml):
+    ```yaml
+    - job_name: stock-monitor
+      scrape_interval: 15s
+      metrics_path: /api/metrics
+      static_configs:
+        - targets: ['stock-monitor:8080']
+          labels:
+            app: stock-monitor
+    ```
+
+  references:
+    - url: "https://github.com/prometheus-net/prometheus-net"
+      title: "prometheus-net GitHub README"
+    - url: "https://www.nuget.org/packages/prometheus-net.AspNetCore"
+      title: "prometheus-net.AspNetCore NuGet"
+
+# =============================================================================
+# TOPIC 5: ASP.NET CORE HEALTH CHECKS
+# =============================================================================
+
+health_checks:
+  summary: >
+    ASP.NET Core health checks provide a standard mechanism for reporting app health.
+    Built into Microsoft.AspNetCore.App — no extra NuGet for basic use. Custom
+    IHealthCheck implementations probe specific subsystems. Supports separate
+    liveness/readiness endpoints and JSON response formatting.
+
+  packages:
+    - name: "Microsoft.Extensions.Diagnostics.HealthChecks"
+      notes: "Built into shared framework, no extra NuGet needed"
+
+    - name: "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"
+      notes: "NuGet package for AddDbContextCheck<T>()"
+
+  basic_setup: |
+    ```csharp
+    builder.Services.AddHealthChecks()
+        .AddCheck<PollerHeartbeatHealthCheck>(
+            "poller-heartbeat",
+            tags: new[] { "ready" })
+        .AddCheck<DatabaseHealthCheck>(
+            "database",
+            tags: new[] { "ready" })
+        .AddCheck<VolumeAccessHealthCheck>(
+            "volume-access",
+            tags: new[] { "ready" })
+        .AddCheck("liveness", () => HealthCheckResult.Healthy(),
+            tags: new[] { "live" });
+
+    // Readiness: all checks tagged "ready"
+    app.MapHealthChecks("/api/health", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready"),
+        ResponseWriter = WriteHealthCheckResponse
+    });
+
+    // Liveness: always healthy if the process is running
+    app.MapHealthChecks("/api/health/live", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("live")
+    });
+    ```
+
+  custom_health_check_implementations:
+    poller_heartbeat: |
+      ```csharp
+      public class PollerHeartbeatHealthCheck : IHealthCheck
+      {
+          private readonly StockPollerService _poller;
+
+          public PollerHeartbeatHealthCheck(StockPollerService poller)
+              => _poller = poller;
+
+          public Task<HealthCheckResult> CheckHealthAsync(
+              HealthCheckContext context,
+              CancellationToken cancellationToken = default)
+          {
+              var lastPoll = _poller.LastPollUtc;
+              if (lastPoll == default)
+                  return Task.FromResult(HealthCheckResult.Degraded("Poller has not run yet."));
+
+              var age = DateTime.UtcNow - lastPoll;
+              if (age > TimeSpan.FromMinutes(5))
+                  return Task.FromResult(HealthCheckResult.Unhealthy(
+                      $"Last poll was {age.TotalMinutes:F1} minutes ago."));
+
+              return Task.FromResult(HealthCheckResult.Healthy(
+                  $"Last poll {age.TotalSeconds:F0}s ago."));
+          }
+      }
+      ```
+
+    database_check: |
+      ```csharp
+      // Option A: EF Core built-in check
+      builder.Services.AddHealthChecks()
+          .AddDbContextCheck<UbiquitiStoreLurkerDbContext>("database");
+
+      // Option B: Custom check with specific query
+      public class DatabaseHealthCheck : IHealthCheck
+      {
+          private readonly UbiquitiStoreLurkerDbContext _db;
+
+          public DatabaseHealthCheck(UbiquitiStoreLurkerDbContext db) => _db = db;
+
+          public async Task<HealthCheckResult> CheckHealthAsync(
+              HealthCheckContext context,
+              CancellationToken cancellationToken = default)
+          {
+              try
+              {
+                  await _db.Database.CanConnectAsync(cancellationToken);
+                  return HealthCheckResult.Healthy();
+              }
+              catch (Exception ex)
+              {
+                  return HealthCheckResult.Unhealthy("Database unreachable.", ex);
+              }
+          }
+      }
+      ```
+
+    volume_access: |
+      ```csharp
+      public class VolumeAccessHealthCheck : IHealthCheck
+      {
+          private readonly string _dataPath;
+
+          public VolumeAccessHealthCheck(IConfiguration config)
+              => _dataPath = config["DataPath"] ?? "/data";
+
+          public Task<HealthCheckResult> CheckHealthAsync(
+              HealthCheckContext context,
+              CancellationToken cancellationToken = default)
+          {
+              if (!Directory.Exists(_dataPath))
+                  return Task.FromResult(HealthCheckResult.Unhealthy(
+                      $"Data volume not mounted at {_dataPath}"));
+
+              try
+              {
+                  var testFile = Path.Combine(_dataPath, ".health-check");
+                  File.WriteAllText(testFile, DateTime.UtcNow.ToString("O"));
+                  File.Delete(testFile);
+                  return Task.FromResult(HealthCheckResult.Healthy());
+              }
+              catch (Exception ex)
+              {
+                  return Task.FromResult(HealthCheckResult.Unhealthy(
+                      "Data volume not writable.", ex));
+              }
+          }
+      }
+      ```
+
+  json_response_writer: |
+    ```csharp
+    static Task WriteHealthCheckResponse(HttpContext context, HealthReport report)
+    {
+        context.Response.ContentType = "application/json";
+        var result = new
+        {
+            status = report.Status.ToString(),
+            duration = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds,
+                exception = e.Value.Exception?.Message
+            })
+        };
+        return context.Response.WriteAsJsonAsync(result);
+    }
+    ```
+
+  docker_healthcheck: |
+    ```dockerfile
+    HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+        CMD wget -qO- http://localhost:8080/api/health/live || exit 1
+    ```
+
+    Note: Use wget (available in Alpine) or curl. The /api/health/live endpoint
+    is preferred for Docker HEALTHCHECK because it only checks liveness (process
+    is responsive), not readiness (all dependencies available).
+
+  references:
+    - url: "https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-10.0"
+      title: "Health checks in ASP.NET Core"
+
+# =============================================================================
+# TOPIC 6: .NET ASPIRE (OPTIONAL, DEVELOPMENT-ONLY)
+# =============================================================================
+
+dotnet_aspire:
+  summary: >
+    .NET Aspire provides development-time observability through the ServiceDefaults
+    project and Aspire Dashboard. It can be used WITHOUT the AppHost orchestrator —
+    just reference ServiceDefaults and call ConfigureOpenTelemetry() for OTel
+    logging, metrics, and tracing with OTLP export to the standalone dashboard.
+
+  current_status: |
+    Aspire 9.1 is the current stable release (aligned with .NET 9).
+    Aspire 13.x packages are available as previews.
+    The ServiceDefaults project template works with .NET 10 projects.
+
+    Key point: Aspire is OPTIONAL for this project. It provides development-time
+    observability (dashboard for traces, logs, metrics) but is NOT required
+    for the production Docker deployment, which uses prometheus-net + Serilog
+    directly.
+
+  servicedefaults_without_apphost: |
+    The Aspire ServiceDefaults project can be used standalone — no AppHost needed.
+    This is the recommended approach for this project.
+
+    1. Create ServiceDefaults project:
+       ```bash
+       dotnet new aspire-servicedefaults --output UbiquitiStoreLurker.ServiceDefaults
+       ```
+
+    2. Reference from the web app project:
+       ```xml
+       <ProjectReference Include="..\UbiquitiStoreLurker.ServiceDefaults\UbiquitiStoreLurker.ServiceDefaults.csproj" />
+       ```
+
+    3. Call in Program.cs:
+       ```csharp
+       var builder = WebApplication.CreateBuilder(args);
+
+       // Aspire ServiceDefaults: OTel logging, metrics, tracing + health checks
+       builder.AddServiceDefaults();
+       // OR just OpenTelemetry without health checks:
+       // builder.ConfigureOpenTelemetry();
+
+       var app = builder.Build();
+
+       // AddServiceDefaults() registers /health and /alive endpoints
+       app.MapDefaultEndpoints();
+       ```
+
+    4. Set OTLP endpoint to standalone Aspire Dashboard:
+       ```bash
+       OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:18889
+       ```
+
+  servicedefaults_provides: |
+    AddServiceDefaults() (or individual calls) configures:
+    - ConfigureOpenTelemetry(): OTel SDK with logging, metrics, tracing
+      - Logging: OpenTelemetry log provider (includes formatted messages + scopes)
+      - Metrics: ASP.NET Core + HttpClient + Runtime instrumentation
+      - Tracing: ASP.NET Core + HttpClient instrumentation
+      - OTLP exporter (sends to Aspire Dashboard or any OTel collector)
+    - AddDefaultHealthChecks(): /health and /alive endpoints
+    - Service discovery (no-op without AppHost)
+    - HttpClient resilience (Polly retry)
+
+  standalone_dashboard: |
+    Run the Aspire Dashboard as a standalone Docker container for development:
+    ```bash
+    docker run --rm -p 18888:18888 -p 18889:18889 \
+        mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    ```
+
+    Dashboard URL: http://localhost:18888
+    OTLP endpoint: http://localhost:18889
+
+    The dashboard shows:
+    - Structured logs (with search and filtering)
+    - Distributed traces (span waterfall)
+    - Metrics (counters, histograms, gauges with time-series graphs)
+
+  apphost_setup_optional: |
+    If full Aspire orchestration is desired later:
+    ```bash
+    dotnet new aspire-apphost --output UbiquitiStoreLurker.AppHost
+    ```
+
+    Program.cs:
+    ```csharp
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    builder.AddProject<Projects.UbiquitiStoreLurker_Web>("stock-monitor");
+
+    builder.Build().Run();
+    ```
+
+    This automatically launches the Aspire Dashboard and wires OTLP endpoints.
+
+  keeping_aspire_optional: |
+    The key design principle: Aspire is a DEVELOPMENT convenience, not a production
+    dependency.
+
+    Production: Docker container runs standalone with Serilog → stdout/files,
+    prometheus-net → /api/metrics scrape endpoint, and ASP.NET health checks.
+
+    Development: Optionally add ServiceDefaults for richer OTel observability
+    via Aspire Dashboard. This is additive — it doesn't replace Serilog or
+    prometheus-net, it supplements them with OTel traces and structured log
+    viewing.
+
+    Conditional inclusion in csproj:
+    ```xml
+    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+      <ProjectReference Include="..\UbiquitiStoreLurker.ServiceDefaults\UbiquitiStoreLurker.ServiceDefaults.csproj" />
+    </ItemGroup>
+    ```
+
+    Or use #if preprocessor:
+    ```csharp
+    #if DEBUG
+    builder.AddServiceDefaults();
+    #endif
+    ```
+
+  references:
+    - url: "https://learn.microsoft.com/dotnet/core/diagnostics/observability-with-otel#opentelemetry-in-aspire"
+      title: "OpenTelemetry in Aspire"
+    - url: "https://learn.microsoft.com/dotnet/aspire/get-started/aspire-overview"
+      title: "Aspire Overview"
+    - url: "https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/explore"
+      title: "Aspire Dashboard"
+    - url: "https://learn.microsoft.com/dotnet/core/diagnostics/observability-otlp-example"
+      title: "Example: OTLP with standalone Aspire Dashboard"
+
+# =============================================================================
+# TOPIC 7: GRAFANA DASHBOARD FOR STOCK MONITOR
+# =============================================================================
+
+grafana_dashboard:
+  summary: >
+    A Grafana dashboard JSON model for the stock monitor can be auto-provisioned
+    via the existing Grafana instance at grafana.rverbist.io. The user's monitoring
+    stack at /opt/docker/infra/monitoring/ already has Prometheus at prometheus.rverbist.io
+    as a data source.
+
+  integration_with_existing_stack: |
+    The user's existing infrastructure:
+    - Prometheus: 172.18.1.1 (prometheus.rverbist.io) — scrapes /api/metrics
+    - Grafana: 172.18.1.2 (grafana.rverbist.io) — dashboards and alerting
+
+    To add the stock monitor as a scrape target, add to prometheus.yml:
+    ```yaml
+    scrape_configs:
+      - job_name: stock-monitor
+        scrape_interval: 15s
+        metrics_path: /api/metrics
+        static_configs:
+          - targets: ['stock-monitor:8080']
+    ```
+
+  provisioning_via_mounted_json: |
+    Grafana supports auto-provisioning dashboards via JSON files mounted into
+    the container. The existing monitoring stack likely has a provisioning directory.
+
+    Mount path: /etc/grafana/provisioning/dashboards/
+    Dashboard JSON file: stock-monitor-dashboard.json
+
+    Provisioning config (dashboards.yml):
+    ```yaml
+    apiVersion: 1
+    providers:
+      - name: stock-monitor
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        options:
+          path: /etc/grafana/provisioning/dashboards
+          foldersFromFilesStructure: true
+    ```
+
+  recommended_panels:
+    - panel: "Poll Rate"
+      type: "time_series"
+      promql: "rate(stock_monitor_polls_total[5m])"
+      description: "Polls per second over 5-minute window"
+
+    - panel: "Poll Error Rate"
+      type: "time_series"
+      promql: 'rate(stock_monitor_polls_total{status="error"}[5m])'
+      description: "Failed polls per second"
+
+    - panel: "Poll Duration (P50/P90/P99)"
+      type: "time_series"
+      promql_p50: "histogram_quantile(0.5, rate(stock_monitor_poll_duration_seconds_bucket[5m]))"
+      promql_p90: "histogram_quantile(0.9, rate(stock_monitor_poll_duration_seconds_bucket[5m]))"
+      promql_p99: "histogram_quantile(0.99, rate(stock_monitor_poll_duration_seconds_bucket[5m]))"
+
+    - panel: "Stock State Gauge"
+      type: "stat"
+      promql: 'stock_monitor_stock_state{state_name="in_stock"}'
+      description: "Current in-stock product count"
+
+    - panel: "Notification Success Rate"
+      type: "gauge"
+      promql: |
+        sum(rate(stock_monitor_notifications_sent_total{status="success"}[1h]))
+        /
+        sum(rate(stock_monitor_notifications_sent_total[1h]))
+        * 100
+
+    - panel: "Queue Depth"
+      type: "stat"
+      promql: "stock_monitor_queue_depth"
+      description: "Products currently monitored"
+
+    - panel: "HTTP Request Rate"
+      type: "time_series"
+      promql: 'rate(http_requests_received_total{job="stock-monitor"}[5m])'
+      description: "API requests per second (built-in from UseHttpMetrics)"
+
+    - panel: "Health Check Status"
+      type: "table"
+      promql: 'aspnetcore_healthcheck_status{job="stock-monitor"}'
+      description: "0=Unhealthy, 0.5=Degraded, 1=Healthy"
+
+  references:
+    - url: "https://grafana.com/docs/grafana/latest/administration/provisioning/"
+      title: "Grafana Provisioning"
+    - url: "https://github.com/prometheus-net/grafana-dashboards"
+      title: "prometheus-net Grafana dashboards (community)"
+
+# =============================================================================
+# INTEGRATION SUMMARY: HOW ALL PIECES FIT TOGETHER
+# =============================================================================
+
+integration_summary: |
+  Program.cs pipeline order (full integration):
+
+  ```csharp
+  using Serilog;
+  using Serilog.Formatting.Compact;
+  using Prometheus;
+
+  // 1. Bootstrap logger
+  Log.Logger = new LoggerConfiguration()
+      .WriteTo.Console(new CompactJsonFormatter())
+      .CreateBootstrapLogger();
+
+  try
+  {
+      var builder = WebApplication.CreateBuilder(args);
+
+      // 2. Serilog
+      builder.Services.AddSerilog((services, lc) => lc
+          .ReadFrom.Configuration(builder.Configuration)
+          .ReadFrom.Services(services)
+          .Enrich.FromLogContext()
+          .WriteTo.Console(new CompactJsonFormatter())
+          .WriteTo.File(new CompactJsonFormatter(), "/logs/stock-monitor-.clef",
+              rollingInterval: RollingInterval.Day,
+              retainedFileCountLimit: 14));
+
+      // 3. SignalR
+      builder.Services.AddSignalR();
+
+      // 4. Health checks + prometheus forwarding
+      builder.Services.AddHealthChecks()
+          .AddCheck<PollerHeartbeatHealthCheck>("poller-heartbeat", tags: new[] { "ready" })
+          .AddDbContextCheck<UbiquitiStoreLurkerDbContext>("database", tags: new[] { "ready" })
+          .AddCheck<VolumeAccessHealthCheck>("volume-access", tags: new[] { "ready" })
+          .ForwardToPrometheus();
+
+      // 5. Background services
+      builder.Services.AddHostedService<StockPollerService>();
+
+      // 6. EF Core, etc...
+      // builder.Services.AddDbContext<UbiquitiStoreLurkerDbContext>(...);
+
+      var app = builder.Build();
+
+      // 7. Middleware pipeline (order matters)
+      app.UseSerilogRequestLogging();
+      app.UseHttpMetrics(options => options.ReduceStatusCodeCardinality());
+
+      // 8. Endpoints
+      app.MapHub<UbiquitiStoreLurkerHub>("/api/hub/stock-monitor");
+      app.MapMetrics("/api/metrics");
+      app.MapHealthChecks("/api/health", new HealthCheckOptions
+      {
+          Predicate = check => check.Tags.Contains("ready"),
+          ResponseWriter = WriteHealthCheckResponse
+      });
+      app.MapHealthChecks("/api/health/live", new HealthCheckOptions
+      {
+          Predicate = _ => false  // Always healthy if process responds
+      });
+
+      // ... other API endpoints ...
+
+      app.Run();
+  }
+  catch (Exception ex)
+  {
+      Log.Fatal(ex, "Application terminated unexpectedly");
+  }
+  finally
+  {
+      await Log.CloseAndFlushAsync();
+  }
+  ```
+
+# =============================================================================
+# OPEN QUESTIONS
+# =============================================================================
+
+open_questions:
+  - question: "Should SignalR use MessagePack protocol for performance, or stick with JSON for easier debugging?"
+    context: >
+      MessagePack reduces payload size and serialization time but makes debugging
+      harder (binary format). For a single-user stock monitor, JSON is likely
+      sufficient and easier to debug via browser dev tools.
+
+  - question: "Should the Grafana dashboard JSON be committed to the repo or generated on first deployment?"
+    context: >
+      Auto-provisioning via mounted JSON is simpler but requires the dashboard
+      JSON to be maintained alongside the code. Alternatively, it could be
+      created manually via the Grafana UI after deployment.
+
+  - question: "Should Aspire ServiceDefaults be conditionally included or always referenced?"
+    context: >
+      Conditional inclusion (#if DEBUG or Condition in csproj) keeps the production
+      image smaller but adds complexity. Always referencing it means the OTel
+      packages are in the production image even if unused.
+
+  - question: "Should the /api/metrics endpoint be protected behind the lan-only middleware or left open for the Docker proxy network?"
+    context: >
+      Prometheus at 172.18.1.1 needs to reach the stock-monitor container on the
+      proxy network. Since all containers are on the same Docker bridge, no
+      authentication is strictly needed, but the endpoint should not be exposed
+      externally via Traefik.
+
+# =============================================================================
+# GAPS
+# =============================================================================
+
+gaps:
+  - area: "prometheus-net version compatibility with .NET 10"
+    description: >
+      prometheus-net v8.2.1 was released Jan 2024. It targets .NET 6+. While it
+      should work with .NET 10, there's no explicit .NET 10 certification. The
+      last commit was 3 years ago — the library may be in maintenance mode.
+    impact: >
+      Low risk — the library uses stable ASP.NET Core APIs. If issues arise,
+      OpenTelemetry Prometheus exporter is an alternative
+      (OpenTelemetry.Exporter.Prometheus.AspNetCore).
+
+  - area: "Serilog.Formatting.Compact version for .NET 10"
+    description: >
+      Serilog ecosystem packages are mature and well-maintained. Latest versions
+      were not explicitly verified against .NET 10 in this research, though
+      Serilog.AspNetCore targets netstandard2.0+ which is compatible.
+    impact: "Minimal — Serilog has excellent .NET compatibility track record."
+
+  - area: "Grafana dashboard JSON model not fully specified"
+    description: >
+      The research provides PromQL queries and panel types but not a complete
+      Grafana dashboard JSON. The full JSON model would need to be created
+      during implementation.
+    impact: "Low — standard Grafana JSON model, well-documented."
+
+  - area: "@microsoft/signalr exact npm version for .NET 10 compatibility"
+    description: >
+      The SignalR JS client version should match the server version. For .NET 10,
+      this would be @microsoft/signalr 10.x — exact version needs verification
+      at implementation time.
+    impact: "Low — npm install @microsoft/signalr will get the latest compatible version."

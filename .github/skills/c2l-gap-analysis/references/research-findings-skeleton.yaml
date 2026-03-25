@@ -1,0 +1,128 @@
+# version: '1.0.0'
+# research_findings_<focus-area>.yaml — Fill-in-the-Blanks Template
+#
+# AUTHORING INSTRUCTIONS (remove this comment block before committing output)
+# ───────────────────────────────────────────────────────────────────────────
+# Author:    gem-researcher (sole file author for research_findings_*.yaml)
+# Spec:      .github/skills/c2l-gap-analysis/references/research-findings-specification.md
+# Plan dir:  ${PLAN_ROOT}/${SCOPE}-gap-analysis-YYYYMMDD/
+# Filename:  research_findings_<focus-area>.yaml  (kebab-case, filesystem-safe)
+# Output:    Hand this file to gem-planner as structured findings input.
+# Rules:
+#   - status values: Done | Partial | Missing | Stale
+#   - evidence must cite live codebase; no document-only conclusions
+#   - created_by is always gem-researcher
+#   - status at hand-off is always: completed
+#   - focus_area value here is reused verbatim in plan.yaml task.focus_area fields
+# Template:  Replace every <angle-bracket placeholder> with real content.
+#            Remove all comment blocks before committing.
+
+# ─── Top-Level Metadata ──────────────────────────────────────────────────
+
+plan_id: ${SCOPE}-gap-analysis-<YYYYMMDD>
+objective: "<One sentence: what functional slice this file verifies against the live codebase>"
+focus_area: "<Human-readable label — reused verbatim in plan.yaml task.focus_area fields derived from this file>"
+created_at: "<YYYY-MM-DD>"
+created_by: gem-researcher
+status: completed
+
+tldr: |
+  - <Bullet: key finding 1 — state what exists and what is missing>
+  - <Bullet: key finding 2>
+  - Total items: N (Done: X, Partial: Y, Missing: Z, Stale: W)
+
+# ─── Research Metadata ───────────────────────────────────────────────────
+
+research_metadata:
+  methodology: "<Brief description of how research was performed, e.g., 'File inspection + grep_search across target module + git log verification'>"
+  tools_used:
+    - read_file
+    - grep_search
+    # - list_dir
+    # - git_log
+  scope: "<Directories, modules, or planning documents inspected, e.g., 'Coach2Lead.Web/Areas/{Module}/, Coach2Lead/Entity/, ${SOURCE_DOCS}'>"
+  confidence: <high | medium | low>
+  coverage: <0-100>  # approximate percentage of the focus area actually verified
+
+# ─── Items (one per planning item / verification unit) ───────────────────
+
+items:
+  - id: "<T1 or GAP-001 or another scope-local identifier>"
+    title: "<Short human-readable title>"
+    status: <Done | Partial | Missing | Stale>
+    evidence:
+      - "<path/to/file.cs> — <what was found: class, method, property, route, etc.>"
+      # - "<path/to/file.js> — <what was found>"
+    detail: |
+      <Narrative: what exists, what is missing, why this status is justified.
+      For Partial/Missing: describe exactly what the gap is and where to add it.
+      For Done: cite the confirming evidence (file, method, commit hash if relevant).
+      For Stale: explain what changed or what is now inconsistent.>
+
+  # - id: "<T2>"
+  #   title: "<Second item>"
+  #   status: Missing
+  #   evidence:
+  #     - "<Search performed: grep_search for 'ClassName' returned 0 results>"
+  #   detail: |
+  #     <Not found. Searched ...>
+
+# ─── Files Analyzed ──────────────────────────────────────────────────────
+
+files_analyzed:
+  - file: "<Basename.ext>"
+    path: "<Coach2Lead.Web/Areas/{Module}/.../Filename.ext>"
+    purpose: "<Why this file was inspected>"
+    language: <csharp | JavaScript | Markdown | YAML>
+    lines: <N>  # approximate line count or relevant range (e.g., "lines 45-120")
+    key_elements:
+      - element: "<ClassName, methodName, or section heading>"
+        type: <class | method | property | route | interface | enum | section>
+        location: "<line N or lines N-M>"
+        description: "<What this element confirms or reveals about the gap>"
+      # - element: "..."
+      #   type: ...
+      #   location: "..."
+      #   description: "..."
+
+  # - file: "<SecondFile.cs>"
+  #   path: "<Coach2Lead/Entity/...>"
+  #   purpose: "..."
+  #   language: csharp
+  #   lines: <N>
+  #   key_elements:
+  #     - element: "..."
+  #       type: ...
+  #       location: "..."
+  #       description: "..."
+
+# ─── Additional Findings (optional) ──────────────────────────────────────
+
+# additional_findings:
+#   - id: AF-1
+#     title: "<Short title for the extra observation>"
+#     detail: |
+#       <Description of the finding and why it matters, even if it doesn't map
+#       to a specific gap analysis item. May influence future tasks.>
+
+# ─── Patterns Found (optional) ───────────────────────────────────────────
+
+# patterns_found:
+#   - category: <structure | architecture | security | performance | naming>
+#     pattern: "<Short label>"
+#     description: "<What the pattern is and why it matters for implementation.>"
+#     prevalence: <rare | common | widespread>
+#     examples:
+#       - file: "<Basename.ext>"
+#         location: "<line N or class/method name>"
+#         snippet: "<Relevant code excerpt or pattern description>"
+#       # - file: "..."
+#       #   location: "..."
+#       #   snippet: "..."
+
+# ─── Open Questions (optional) ───────────────────────────────────────────
+
+# open_questions:   # Optional — include when research leaves material open questions.
+#   - '<Unresolved question>'  # See spec for field definition.
+# Note: gem-researcher mode marks this as REQUIRED; the skill spec marks it as Optional.
+# Include when relevant; omit only when no material open questions remain.

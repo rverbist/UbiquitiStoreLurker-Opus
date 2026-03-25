@@ -1,0 +1,1728 @@
+plan_id: storefront-stock-monitor-opus-20260323
+created: "2026-03-23"
+updated: "2026-03-24"
+status: completed
+# task-phase-3-discovery completed 2026-03-24.
+# task-phase-3-realworld completed 2026-03-24.
+# task-phase-3-cascading completed 2026-03-24.
+# task-phase-12 (Aspire Integration) and all 14 sub-tasks (12-A through 12-N) completed 2026-03-24.
+# 3 backlog tasks added and completed 2026-03-24: task-backlog-1 (/ready endpoint), task-backlog-2 (OTLP Collector), task-backlog-3 (Aspire test secrets).
+objective: >
+  Build a .NET 10 ASP.NET Minimal API + Vue 3 web application that monitors
+  Ubiquiti EU Store product pages for stock availability changes, stores history
+  in SQLite via EF Core 10 (WAL mode), sends notifications through 5 providers
+  (Browser Push/VAPID, Email/MailKit, SMS/Twilio, Microsoft Teams, Discord),
+  streams real-time updates via SignalR, and displays a celebration popup with
+  GSAP animations and canvas-confetti when products come in stock. Deployed as a
+  single Docker container (Alpine multi-stage, non-root UID 1654) behind Traefik
+  at ubiquitistorelurker.rverbist.io with static IP 172.18.2.4 in the apps tier.
+
+tech_stack:
+  backend:
+    - ".NET 10 LTS (ASP.NET Core 10 Minimal API)"
+    - "EF Core 10 + SQLite (WAL mode)"
+    - "SignalR (built-in)"
+    - "Serilog CLEF (5 packages)"
+    - "prometheus-net 8.2.1"
+    - "Microsoft.Extensions.Http.Resilience 9.5.0"
+    - "AngleSharp 1.3.0"
+    - "MailKit 4.15.1, Twilio 7.14.3, Lib.Net.Http.WebPush 3.3.1"
+  frontend:
+    - "Vue 3.5.x + Vite 6.x + TypeScript"
+    - "GSAP 3.12+, canvas-confetti ~1.9"
+    - "@microsoft/signalr ^8, Vue Router 4"
+  testing:
+    - "NUnit 4.4.0, NSubstitute 5.x"
+    - "Microsoft.AspNetCore.Mvc.Testing 10.0.*"
+    - "coverlet.collector 6.*"
+  infrastructure:
+    - "Docker Alpine multi-stage (sdk:10.0-alpine / aspnet:10.0-alpine)"
+    - "Traefik reverse proxy, static IP 172.18.2.4"
+    - "Prometheus + Grafana (existing lab stack)"
+    - ".NET Aspire 9.2+ ServiceDefaults (dev-only)"
+
+deployment:
+  container_name: ubiquitistorelurker
+  network: proxy
+  ip: "172.18.2.4"
+  hostname: ubiquitistorelurker.rverbist.io
+  data_volume: /devpool/docker-volumes/apps/ubiquitistorelurker/data
+  log_volume: /devpool/docker-volumes/apps/ubiquitistorelurker/logs
+  compose_path: /opt/docker/apps/ubiquitistorelurker/docker-compose.yml
+
+tasks:
+  - id: task-phase-0
+    name: "Phase 0: Project Scaffolding"
+    description: >
+      Create the solution and project structure. dotnet new web base, Serilog
+      bootstrap logger, /api/health endpoint returning 200 OK with JSON body,
+      Dockerfile (Alpine multi-stage SDK 10.0-alpine → aspnet 10.0-alpine, non-root
+      UID 1654) + docker-compose.yml with Traefik labels and static IP 172.18.2.4,
+      Vue 3 + Vite 6 + TypeScript in ClientApp/, wire Vite dev proxy → backend,
+      build output to wwwroot, SPA fallback in Program.cs, EF Core migration
+      scaffold (empty initial migration), NUnit test project with one green smoke
+      test verifying solution compiles and health endpoint returns 200 OK.
+    agent: gem-implementer
+    status: completed
+    dependencies: []
+    deliverable: "docker compose up → curl /api/health → 200 OK; dotnet test → 1 passed"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "Docker Alpine"
+      - "Vue 3"
+      - "Vite 6"
+      - "NUnit 4.4.0"
+      - "Serilog"
+    estimated_lines: 800
+    test_coverage: "1 green smoke test (health endpoint)"
+
+  - id: task-phase-1
+    name: "Phase 1: Data Model + EF Core"
+    description: >
+      Define all 6 EF Core entities: MonitoredProduct (Id, Url, Name, ImageUrl,
+      IsActive, PollingIntervalSeconds), StockCheck (Id, ProductId, CheckedAt,
+      StockStatus, RawHtml, ConfidenceScore), NotificationLog (Id, ProductId,
+      Provider, SentAt, Success, ErrorMessage), NotificationSubscription (Id,
+      Provider, Endpoint, Keys, IsActive), AppSetting (Key, Value), and
+      PushSubscription (Id, Endpoint, P256dh, Auth, CreatedAt). Apply WAL mode
+      pragma via interceptor or migration. Seed default AppSettings (poll interval,
+      enabled providers, VAPID public key placeholder). Write unit tests covering
+      entity validation, FK relationships, and seeded data presence.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-0
+    deliverable: "dotnet ef migrations list shows initial + seed migration; all model unit tests pass"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "EF Core 10"
+      - "SQLite (WAL mode)"
+      - "NUnit 4.4.0"
+    estimated_lines: 600
+    test_coverage: "Entity unit tests: FK integrity, seeded defaults, WAL pragma applied"
+
+  - id: task-phase-2
+    name: "Phase 2: Polling Engine"
+    description: >
+      Implement two BackgroundServices: PollingCoordinatorService (reads active
+      MonitoredProducts, schedules one PollingWorker per product respecting
+      per-product interval) and PollingWorkerService (fetches product URL via
+      IHttpClientFactory with Polly retry + 429 Retry-After handling, persists
+      StockCheck row, emits CLEF structured log). Apply Microsoft.Extensions.Http.Resilience
+      pipeline (retry, circuit-breaker, timeout). Token-bucket rate limiter prevents
+      hammering Ubiquiti store. Configurable User-Agent header. Write integration
+      tests using WebApplicationFactory with a mock HTTP handler verifying
+      StockCheck rows are persisted after a poll cycle.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-1
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "Microsoft.Extensions.Http.Resilience 9.5.0"
+      - "Serilog CLEF"
+      - "EF Core 10"
+      - "NUnit 4.4.0"
+    estimated_lines: 500
+    test_coverage: "Integration test: mock HTTP → poll cycle → StockCheck persisted"
+
+  - id: task-phase-3
+    name: "Phase 3: Stock Detection"
+    description: >
+      Implement the AngleSharp-based parser chain with three strategies and
+      confidence scoring: (1) JSON-LD structured data parser (highest confidence),
+      (2) Button state parser (searches for add-to-cart / notify-me / out-of-stock
+      button text patterns), (3) Text heuristic parser (searches visible text for
+      stock keywords). Implement ProductInfoExtractor orchestrating the chain and
+      returning (StockStatus, ConfidenceScore, ExtractorName). Implement
+      StockStateMachine translating (previousStatus, newStatus, confidence) →
+      (StateTransition, ShouldNotify). Commit 5+ real Ubiquiti HTML fixture files
+      covering InStock, OutOfStock, ComingSoon, and Indeterminate states. All
+      parser strategies and state machine transitions covered by NUnit unit tests
+      against fixtures.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-2
+    deliverable: "Parser chain correctly classifies all 5+ HTML fixtures; StockStateMachine unit tests pass"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "AngleSharp 1.3.0"
+      - "NUnit 4.4.0"
+      - "NSubstitute 5.x"
+    estimated_lines: 700
+    test_coverage: "Unit tests: all parser strategies × fixture states; StockStateMachine transitions"
+
+  - id: task-phase-4
+    name: "Phase 4: Notification System"
+    description: >
+      Define INotificationProvider interface (SendAsync(NotificationPayload, CancellationToken)).
+      Implement 5 providers: EmailProvider (MailKit SMTP), SmsProvider (Twilio REST),
+      TeamsProvider (Adaptive Card via webhook), DiscordProvider (embed via webhook),
+      WebPushProvider (Lib.Net.Http.WebPush VAPID stub — full implementation in Phase 11).
+      Implement NotificationDispatcher: reads enabled providers from AppSettings,
+      fan-outs to all enabled providers in parallel, logs NotificationLog rows on
+      success/failure, suppresses duplicate notifications within configurable
+      cooldown window. Write NUnit unit tests with NSubstitute mocking providers,
+      verifying fan-out, duplicate suppression, and partial-failure resilience.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-3
+    deliverable: "5 provider stubs + dispatcher; NSubstitute tests cover fan-out and duplicate suppression"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "MailKit 4.15.1"
+      - "Twilio 7.14.3"
+      - "Lib.Net.Http.WebPush 3.3.1"
+      - "NUnit 4.4.0"
+      - "NSubstitute 5.x"
+    estimated_lines: 650
+    test_coverage: "Unit tests: fan-out to all providers, partial failure handled, duplicate cooldown enforced"
+
+  - id: task-phase-5
+    name: "Phase 5: API Endpoints"
+    description: >
+      Implement all Minimal API endpoint groups using MapGroup. Endpoints: Products
+      (GET /api/products, POST, GET /{id}, PUT /{id}, DELETE /{id}, POST /{id}/poll-now),
+      StockHistory (GET /api/products/{id}/history?page&pageSize), Settings
+      (GET /api/settings, PUT /api/settings/{key}), Notifications
+      (GET /api/notifications?page&pageSize), PushSubscriptions (POST /api/push/subscribe,
+      DELETE /api/push/unsubscribe). Wire OpenAPI/Swagger via Microsoft.AspNetCore.OpenApi.
+      Write integration tests using WebApplicationFactory covering happy paths,
+      404 for unknown IDs, and validation errors (400). Ensure all endpoints return
+      ProblemDetails on error.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-1
+    deliverable: "All API endpoints return correct status codes; Swagger UI accessible at /swagger; integration tests green"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "ASP.NET Core 10 Minimal API"
+      - "Microsoft.AspNetCore.OpenApi"
+      - "Microsoft.AspNetCore.Mvc.Testing 10.0.*"
+      - "NUnit 4.4.0"
+    estimated_lines: 600
+    test_coverage: "Integration tests: CRUD happy paths, 404, 400 validation, ProblemDetails shape"
+
+  - id: task-phase-6
+    name: "Phase 6: SignalR Real-Time"
+    description: >
+      Implement UbiquitiStoreLurkerHub (strongly-typed IUbiquitiStoreLurkerClient interface) with
+      4 server→client events: StockStatusChanged(productId, previousStatus, newStatus,
+      checkedAt), NotificationSent(productId, provider, sentAt), PollCycleCompleted
+      (productId, duration, checksCount), and SystemAlert(severity, message). Inject
+      IHubContext<UbiquitiStoreLurkerHub, IUbiquitiStoreLurkerClient> into PollingWorkerService
+      and NotificationDispatcher. Add hub endpoint at /ubiquitistorelurker-hub. Write
+      integration tests using TestServer + SignalR client verifying event delivery
+      after a simulated poll cycle.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-4
+      - task-phase-5
+    deliverable: "SignalR hub connected; 4 events fire correctly; integration test receives StockStatusChanged event"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "ASP.NET Core SignalR (built-in)"
+      - "NUnit 4.4.0"
+    estimated_lines: 400
+    test_coverage: "Integration test: SignalR client receives StockStatusChanged after poll"
+
+  - id: task-phase-7
+    name: "Phase 7: Vue 3 Frontend — Scaffold + Monitor"
+    description: >
+      Build the main Monitor page (MonitorView.vue) with ProductCard grid displaying
+      product name, image, current stock status badge (InStock/OutOfStock/ComingSoon/
+      Indeterminate), last checked timestamp, and quick-poll button. Implement
+      ProductDetailPanel.vue (slide-in side panel on card click) showing full stock
+      history table, notification log, and poll-now action. Implement RequestLogDrawer.vue
+      displaying live /api/history feed. Wire @microsoft/signalr client: connect to
+      /ubiquitistorelurker-hub, handle StockStatusChanged and PollCycleCompleted events,
+      update reactive store (Pinia or composable). Apply Ubiquiti-inspired dark theme
+      (dark navy background, blue accent #006FFF, white text). Implement Vue Router
+      with Monitor and Setup routes.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-6
+    deliverable: "Vue app loads; ProductCard grid renders; SignalR updates reflected live; Ubiquiti dark theme applied"
+    requires_review: false
+    tech_stack:
+      - "Vue 3.5.x"
+      - "Vite 6.x"
+      - "TypeScript"
+      - "@microsoft/signalr ^8"
+      - "Vue Router 4"
+      - "Pinia"
+    estimated_lines: 900
+    test_coverage: "Manual verification: SignalR event updates product card status without page reload"
+
+  - id: task-phase-8
+    name: "Phase 8: Vue 3 Frontend — Animations + Celebration"
+    description: >
+      Add GSAP 3.12 animations: product row slide-in on mount (staggered, from y:20
+      opacity:0), tumble-off animation on product removal (rotate + fade), side panel
+      slide-in/out transition, status badge pulse on change. Implement StockPopup.vue:
+      modal overlay triggered by StockStatusChanged event with status InStock,
+      showing product name, image, direct store link, and dismiss button. Implement
+      ConfettiOverlay.vue: canvas-confetti burst fired on InStock transition,
+      configurable particle count and colors (blue + gold). Ensure celebrations can
+      be disabled via AppSettings toggle surfaced in Setup page.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-7
+    deliverable: "GSAP animations play on load/remove; StockPopup fires on InStock event; confetti renders correctly"
+    requires_review: false
+    tech_stack:
+      - "Vue 3.5.x"
+      - "GSAP 3.12+"
+      - "canvas-confetti ~1.9"
+      - "TypeScript"
+    estimated_lines: 500
+    test_coverage: "Manual verification: InStock event → popup appears + confetti fires; disable toggle works"
+
+  - id: task-phase-9
+    name: "Phase 9: Vue 3 Frontend — Setup Page"
+    description: >
+      Build SetupView.vue with SetupForm.vue for global settings (poll interval,
+      max concurrent pollers, celebration toggle, User-Agent). Implement
+      NotificationProviderConfig.vue as a tabbed component with one tab per provider:
+      Email (SMTP host/port/credentials), SMS (Twilio SID/token/from/to), Teams
+      (webhook URL test button), Discord (webhook URL test button), Browser Push
+      (VAPID public key display, subscription status, test push button). All settings
+      persisted via PUT /api/settings/{key}. VAPID public key fetched from
+      GET /api/settings and displayed for copy-paste into sw.js. Form validation
+      with inline error messages. Test-notification buttons call provider-specific
+      test endpoints.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-7
+    deliverable: "Setup page renders all provider configs; settings persist to DB; test buttons invoke notification send"
+    requires_review: false
+    tech_stack:
+      - "Vue 3.5.x"
+      - "TypeScript"
+      - "Vite 6.x"
+    estimated_lines: 600
+    test_coverage: "Manual verification: save settings → reload page → values persisted; test button triggers provider"
+
+  - id: task-phase-10
+    name: "Phase 10: Prometheus + Grafana"
+    description: >
+      Implement UbiquitiStoreLurkerMetrics static class using prometheus-net 8.2.1:
+      counters (stock_checks_total, notifications_sent_total labelled by provider,
+      stock_transitions_total labelled by from/to status), gauges (active_products,
+      monitored_products_total), histograms (poll_duration_seconds,
+      notification_latency_seconds). Expose /api/metrics endpoint (prometheus-net
+      middleware). Add scrape target entry to existing Prometheus config at
+      /opt/docker/infra/monitoring/config/prometheus.yml. Create Grafana dashboard
+      JSON (ubiquitistorelurker-dashboard.json) provisioned via existing provisioning
+      directory; panels: poll rate, stock transition rate, notification success rate,
+      poll duration p50/p95, active products gauge.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-6
+    deliverable: "curl /api/metrics → Prometheus text format; Grafana dashboard visible and populated"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "prometheus-net 8.2.1"
+      - "Prometheus (existing lab)"
+      - "Grafana (existing lab)"
+    estimated_lines: 350
+    test_coverage: "Smoke test: /api/metrics returns 200; metric names present in response body"
+
+  - id: task-phase-11
+    name: "Phase 11: Browser Push (Service Worker)"
+    description: >
+      Implement full VAPID Browser Push flow. Backend: generate VAPID key pair on
+      first start and persist to AppSettings, WebPushProvider sends push via
+      Lib.Net.Http.WebPush using stored subscriptions, DELETE /api/push/subscribe
+      on 410 Gone response (subscription cleanup). Frontend: register sw.js as
+      service worker in main.ts, subscribe to push in Setup page using VAPID public
+      key from API, POST subscription to /api/push/subscribe. Implement sw.js push
+      event handler displaying notification with product name, status, and action
+      URL opening the store. Handle notificationclick to focus/open app window.
+      Write unit test verifying 410 response triggers subscription deletion.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-4
+      - task-phase-9
+    deliverable: "Browser receives push notification on InStock event; 410 cleanup removes stale subscriptions"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "Lib.Net.Http.WebPush 3.3.1"
+      - "Vue 3.5.x"
+      - "Service Workers API"
+      - "NUnit 4.4.0"
+    estimated_lines: 450
+    test_coverage: "Unit test: 410 response → subscription removed from DB; manual: browser receives push"
+
+  - id: task-phase-12
+    name: "Phase 12: Aspire Integration — Learning Edition"
+    description: >
+      Optional learning exercise. Production stack unaffected.
+      Sub-tasks task-phase-12-a through task-phase-12-n each implement
+      one concern independently. All sub-tasks carry status: skipped.
+      Activate the phase by changing all task-phase-12-* from skipped to pending.
+
+      DESIGN Q&A (canonical reference — do not remove):
+
+      Q: Does Aspire instrument domain code out of the box?
+      A: No. Out of the box you get ASP.NET Core HTTP request spans and HttpClient
+         outbound spans only. Domain operations (poll cycle, parsers, state machine,
+         hub broadcast) are invisible. Custom instrumentation (sub-task D) adds them.
+
+      Q: Is the SQLiteWeb container empty?
+      A: No. Aspire coordinates the file path so the SQLiteWeb sidecar mounts the
+         SAME SQLite file as the app. You see live dev data.
+
+      Q: Does "aspire publish" push to the remote host?
+      A: No — generates docker-compose.yaml + .env locally in ./aspire-output/.
+         The VS Code "Deploy → Proxmox" task (sub-task L) scp + ssh-restarts from there.
+
+      Q: Does Aspire reduce config to manage?
+      A: Yes. WithReference(db) injects ConnectionStrings__ubiquitistorelurker-db.
+         Secrets become AddParameter(..., secret: true) in user-secrets.
+         See sub-task K for the full migration table.
+
+      Q: Can the Aspire Dashboard run in the same container as the app?
+      A: No — different base images. Run as a sidecar service in docker-compose.
+         The app ships OTLP to it via an internal Docker network (sub-task M).
+
+      Q: Will I have 2 Aspire Dashboards running at once?
+      A: Never — the two modes are mutually exclusive:
+         - Aspire mode (dotnet run AppHost): AppHost auto-starts Dashboard at
+           localhost:15888. Compose is NOT running. Grafana at localhost:3000
+           (Aspire-managed local container, dev only).
+         - Docker mode (local: docker compose up, remote: Proxmox deploy):
+           Standalone Dashboard in compose at localhost:18888 / aspire.ubiquitistorelurker.
+           rverbist.io. Grafana at grafana.rverbist.io (existing lab — not a new
+           container; Prometheus scrape target already wired in Phase 10).
+           AppHost is NOT running.
+         The standalone Dashboard (mcr.microsoft.com/dotnet/aspire-dashboard:9.2)
+         is the EXACT same binary as what AppHost auto-launches. Zero feature diff.
+
+      Q: Standalone Dashboard — gain or lose functionality vs AppHost dashboard?
+      A: Neither. Same binary, same image. You gain: works in Docker mode without
+         AppHost. You lose: nothing. No duplication at runtime.
+    agent: gem-implementer
+    status: completed
+    # task-phase-12-a through task-phase-12-n all completed 2026-03-24.
+    # Aspire Integration (Learning Edition) fully implemented.
+    dependencies:
+      - task-phase-6
+    deliverable: >
+      dotnet run --project UbiquitiStoreLurker.AppHost → Dashboard shows 11-span domain
+      waterfall traces with tags; SQLiteWeb browser showing live data; standalone
+      Dashboard added to docker-compose with Traefik at aspire.ubiquitistorelurker.rverbist.io;
+      VS Code deploy tasks for local + Proxmox; settings migration documented and applied;
+      Aspire.Hosting.Testing integration tests pass; production Docker image free of
+      Aspire packages.
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - ".NET Aspire 9.2+"
+      - "CommunityToolkit.Aspire.Hosting.SQLite"
+      - "OpenTelemetry ActivitySource (System.Diagnostics)"
+      - "OpenTelemetry.Instrumentation.EntityFrameworkCore"
+      - "Aspire.Hosting.Testing 9.2+"
+      - "NUnit 4.4.0"
+      - "mcr.microsoft.com/dotnet/aspire-dashboard:9.2 (standalone)"
+    estimated_lines: 900
+    test_coverage: >
+      4 Aspire.Hosting.Testing integration tests: AppHost healthy, product
+      add + poll persists StockCheck, SignalR receives PollCycleCompleted,
+      SQLiteWeb sidecar accessible.
+  - id: task-phase-13
+    name: "Phase 13: Polish + Documentation"
+    description: >
+      Finalize all remaining quality gates: (1) README.md with architecture diagram
+      (Mermaid), setup instructions, environment variables reference, and Grafana
+      dashboard screenshot placeholder. (2) Error hardening: global exception handler
+      middleware returning ProblemDetails, Polly fallback on parser failure returning
+      Indeterminate, graceful BackgroundService shutdown respecting CancellationToken.
+      (3) Finalize Playwright discovery tool (scripts/storefront/discover-stock-indicators.js)
+      with HAR capture and CSS selector extraction. (4) Ensure full test suite is
+      green (dotnet test --collect:"XPlat Code Coverage"). (5) Production deployment:
+      build and push Docker image, deploy via docker compose up -d at
+      /opt/docker/apps/ubiquitistorelurker/, verify health endpoint and SignalR connection
+      from browser at ubiquitistorelurker.rverbist.io.
+    agent: gem-implementer
+    status: completed
+    dependencies:
+      - task-phase-8
+      - task-phase-9
+      - task-phase-10
+      - task-phase-11
+    deliverable: "README complete; all tests green with coverage report; container running at ubiquitistorelurker.rverbist.io"
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "Docker Alpine"
+      - "Playwright"
+      - "coverlet"
+      - "NUnit 4.4.0"
+    estimated_lines: 400
+    test_coverage: "Full test suite green; code coverage report generated; production smoke test passes"
+
+  # =============================================================================
+  # POST-DELIVERY DISCOVERY SESSION — 2026-03-24
+  # =============================================================================
+  # During a live review session the following was discovered:
+  #
+  # 1. Logs reviewed: container healthy, 0 restarts, clean since 2026-03-23T22:36:14Z.
+  #    8 startup crashes at first boot were a one-time SQLite volume-creation race
+  #    (self-resolved by restart policy). One 405 on SignalR negotiate (stale browser tab).
+  #
+  # 2. Products added via API using real Ubiquiti EU store URLs:
+  #      out-of-stock: https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-4
+  #      in-stock:     https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-8
+  #
+  # 3. After first poll cycle: both products remained in state=0 (Unknown).
+  #    Log showed: "All parsers returned Indeterminate — no stock state detected"
+  #    with HTTP 429 on the second product (both fired simultaneously → rate limited).
+  #
+  # 4. Root cause analysis:
+  #    a. Synthetic fixtures: All 7 fixture HTML files were hand-crafted minimal stubs,
+  #       not captured from the real store. The plan called for "real Ubiquiti HTML
+  #       fixture files" but gem-implementer produced synthetic equivalents.
+  #    b. Real page structure confirmed by direct fetch: JSON-LD IS present on real
+  #       pages as expected, with correct schema.org availability values. The approach
+  #       was architecturally sound but untested against reality.
+  #    c. The Indeterminate result's exact cause is unconfirmed — AngleSharp CSS
+  #       selector behaviour vs. the real page's script tag attributes
+  #       (id="product-jsonld" data-next-head="") could differ from synthetic fixtures.
+  #       Also: 429 on second product means only one product was polled per cycle.
+  #    d. No git commits were made during development — all 14 phases were committed
+  #       as a single unit on 2026-03-24 (commit 9620bfc).
+  #
+  # 5. Decision: halt code changes, update plan with remediation tasks below.
+  # =============================================================================
+
+  - id: task-phase-3-discovery
+    name: "Phase 3 Re-discovery: Capture Real Ubiquiti Store Fixtures via Playwright"
+    description: >
+      The original Phase 3 parser implementation used synthetic HTML fixtures that
+      did not accurately represent the real Ubiquiti EU store page structure. This
+      task captures ground-truth fixtures from the real store and validates all
+      parsers against them before any code changes are made.
+
+      Steps:
+      1. Use Playwright (Node.js, headless Chromium) to fetch and save full rendered
+         HTML snapshots of both confirmed URLs:
+           - UNAS Pro 4 (out-of-stock): https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-4
+           - UNAS Pro 8 (in-stock):     https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-8
+         Save as: tests/UbiquitiStoreLurker.Tests/Fixtures/real-unas-pro-4-outofstock.html
+                  tests/UbiquitiStoreLurker.Tests/Fixtures/real-unas-pro-8-instock.html
+         These are the authoritative fixtures; do NOT simplify or edit them.
+
+      2. Capture HAR file alongside each snapshot to document all network requests,
+         response headers (Content-Encoding, Vary, CF-Cache-Status, etc.), and status
+         codes. Save to: tests/UbiquitiStoreLurker.Tests/Fixtures/har/
+
+      3. Using the captured HTML, manually verify the following in the fixture:
+         a. JSON-LD block presence: script[type="application/ld+json"] — note all
+            attributes (id, data-next-head, etc.)
+         b. Exact "availability" value in the JSON-LD offers object
+         c. Button element structure (class names are Styled Components hashes —
+            confirm the ButtonStateParser will correctly return Indeterminate for these)
+         d. Any text nodes matching stock-related patterns ("Sold Out", "Add to Cart",
+            "Notify Me", "In Stock") that TextContentParser could use
+
+      4. Document findings in a discovery report:
+         tests/UbiquitiStoreLurker.Tests/Fixtures/DISCOVERY.md
+         Include: page title, JSON-LD structure, button classes, stock text nodes,
+         response headers, any anti-bot signals observed.
+
+      5. Do NOT modify any parser code in this task — observation only.
+
+    agent: gem-implementer
+    status: completed
+    completed: "2026-03-24"
+    dependencies:
+      - task-phase-13
+    deliverable: >
+      Two real HTML fixture files saved; HAR files saved; DISCOVERY.md written
+      documenting the exact DOM structure; no parser code modified.
+    requires_review: false
+    tech_stack:
+      - "Playwright (Node.js, @playwright/test)"
+      - "AngleSharp (read-only analysis)"
+    estimated_lines: 100
+    test_coverage: "None — observation task only"
+
+  - id: task-phase-3-realworld
+    name: "Phase 3 Re-implementation: Real-World Parser Validation and Fix"
+    description: >
+      Using the real fixtures captured in task-phase-3-discovery, rewrite the
+      Phase 3 parser test suite and fix any parser defects found. DISCOVERY.md
+      confirmed the following before any code is changed:
+        - JsonLdStockParser: selector and value matching are architecturally correct;
+          the real tag has extra attributes (id, data-next-head) that do not break
+          the CSS attribute selector.
+        - ButtonStateParser: Indeterminate is correct for real Ubiquiti pages
+          (Styled Components hash class names only). This is confirmed expected
+          behaviour, not a defect.
+        - TextContentParser: "Sold Out" IS visible on OutOfStock pages; "Add to Cart"
+          appears on BOTH InStock and OutOfStock pages. "Sold Out" must take priority
+          over "Add to Cart" when both exist in the same page — fix required.
+
+      Steps:
+      1. Replace synthetic fixture files with the real ones captured in
+         task-phase-3-discovery. Keep old synthetic files renamed to
+         synthetic-*.html for reference.
+
+      2. Audit and update JsonLdStockParser:
+         a. Verify AngleSharp selector "script[type='application/ld+json']" matches
+            the real page's tag (which has id="product-jsonld" data-next-head="").
+            The CSS attribute selector should still match — confirm with a targeted
+            unit test using the real fixture.
+         b. Verify JSON parsing handles the real offers structure (nested
+            priceSpecification, no direct "price" property at offers root).
+         c. Add test: ParseAsync_RealUnasProOutOfStock_ReturnsOutOfStock
+         d. Add test: ParseAsync_RealUnasProInStock_ReturnsInStock
+
+      3. Audit and update ButtonStateParser:
+         a. Real buttons use Styled Components hash class names (sc-*, iaSuuY, etc.)
+            with no semantic class. Confirm ButtonStateParser correctly returns
+            Indeterminate for these (desired — not a bug).
+         b. Add test: ParseAsync_RealPage_ReturnsIndeterminate (confirms graceful
+            degradation, not a failure).
+
+      4. Fix TextContentParser — priority ordering (REQUIRED FIX):
+         a. "Sold Out" must be evaluated before "Add to Cart". When both appear on the
+            same page (OutOfStock page shows notify-me form which includes an "Add to
+            Cart" element elsewhere), TextContentParser must return OutOfStock, not
+            InStock or Indeterminate.
+         b. Implement detection order: OutOfStock signals first ("Sold Out",
+            "Out of Stock", "Notify Me When Available") → if matched, return OutOfStock.
+            Then InStock signals ("Add to Cart") → if matched (and no OutOfStock
+            signal found), return InStock. Unmatched → Indeterminate.
+         c. Add test: ParseAsync_RealUnasProOutOfStock_ReturnOutOfStock
+            (contains both "Sold Out" and "Add to Cart" — must resolve to OutOfStock).
+         d. Add test: ParseAsync_RealUnasProInStock_ReturnsInStock
+            (contains only "Add to Cart" — must resolve to InStock).
+
+      5. Add an integration-level test that runs ALL three parsers via
+         CompositeStockParser against each real fixture and asserts the final
+         StockState (InStock / OutOfStock) is correctly determined.
+
+      6. Run full test suite: dotnet test — must remain at 50+ tests all passing.
+         New tests expected: minimum 7 new tests (2 JSON-LD real, 1 button graceful,
+         2 TextContent real, 2 composite end-to-end).
+
+      7. After tests pass locally, rebuild and redeploy the container:
+         docker compose up --build -d
+         Then trigger a manual poll cycle and confirm log shows:
+         "Parser JsonLd detected InStock/OutOfStock with confidence 95%"
+         for both products (unas-pro-4 and unas-pro-8).
+
+    agent: gem-implementer
+    status: completed
+    completed: "2026-03-24"
+    dependencies:
+      - task-phase-3-discovery
+      - task-phase-http-hardening
+    deliverable: >
+      Real fixture files replace synthetic ones; parser tests updated and passing
+      against real HTML; CompositeStockParser integration test added; container
+      redeployed; manual poll confirms correct stock detection for both URLs.
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "NUnit 4.4.0"
+      - "AngleSharp 1.3.0"
+    estimated_lines: 250
+    test_coverage: >
+      Minimum 5 new tests. All 50+ existing tests continue to pass.
+      CompositeStockParser tested end-to-end with real fixtures.
+
+  - id: task-phase-3-cascading
+    name: "Phase 3 Cascading Effects: Validate Unchanged Contracts"
+    description: >
+      Assess and validate that changes made in task-phase-3-realworld did not
+      break any downstream components. In principle the abstractions (IStockParser,
+      StockParseResult, CompositeStockParser) isolate the parsers from everything
+      above them. This task makes that assumption verifiable.
+
+      Scope of impact analysis:
+      - IStockParser / StockParseResult / CompositeStockParser: interfaces unchanged
+        → PollWorkerService, StockStateMachine are unaffected.
+      - Fixture file renames (synthetic-* prefix): only affect test projects,
+        no production code paths.
+      - If TextContentParser gains new patterns: TextContentParserTests must be
+        updated, and the confidence threshold logic in CompositeStockParser must
+        still be respected.
+      - If ButtonStateParser is confirmed to return Indeterminate for real pages:
+        no change needed, but this should be explicitly documented in DISCOVERY.md.
+
+      Steps:
+      1. Run full dotnet test after task-phase-3-realworld completes. Zero regressions
+         is the pass criterion.
+      2. Manually verify the deployed container:
+         a. GET /api/products → unas-pro-4: OutOfStock, unas-pro-8: InStock
+         b. GET /api/products/{id}/history → at least one StockCheck record each
+         c. SignalR events: connect a browser to ubiquitistorelurker.rverbist.io and confirm
+            the Monitor page shows correct stock states on initial load.
+         d. Prometheus: GET /api/metrics → stock_checks_total counter has incremented.
+      3. If any regression found: do NOT patch silently. Open a new task entry in
+         plan.yaml capturing the regression, its root cause, and the fix.
+      4. Update plan.yaml: mark this task completed only when all the above pass.
+
+    agent: gem-implementer
+    status: completed
+    completed: "2026-03-24"
+    dependencies:
+      - task-phase-3-realworld
+    deliverable: >
+      Full test suite green (zero regressions); manual API + SignalR + Prometheus
+      validation passes; plan.yaml updated with confirmed results.
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "NUnit 4.4.0"
+      - "Docker"
+    estimated_lines: 0
+    test_coverage: "Verification only — no new test code unless regressions found"
+    verification_results:
+      dotnet_test: "66/66 pass, zero regressions"
+      api_products: "id=1 currentState=2(OutOfStock), id=2 currentState=1(InStock)"
+      api_history: "Multiple StockCheck records, parserStrategy=JsonLd, parserConfidence=0.95, errorCount=0"
+      prometheus: "ubiquitistorelurker_checks_total{result=success}=15, ubiquitistorelurker_rate_limit_server_429_total=0, ubiquitistorelurker_active_products=2"
+      signalr_hub: "/ubiquitistorelurker-hub/negotiate returns connectionId + WebSockets/SSE/LongPolling transports"
+      monitor_page: "HTTP 200"
+
+  # =============================================================================
+  # POST-DISCOVERY HTTP HARDENING SESSION — 2026-03-24
+  # =============================================================================
+  # Discovery session (task-phase-3-discovery) revealed three compounding issues
+  # that must be fixed before parser re-implementation is meaningful:
+  #
+  # 1. User-Agent is trivially identifiable as a bot:
+  #    Current: "UbiquitiStoreLurker/1.0 (+https://github.com/rverbist/ubiquitistorelurker)"
+  #    Required: indistinguishable from Chrome 124 on Windows 10
+  #
+  # 2. No cookie session — the Ubiquiti EU store expects three cookies to be
+  #    present before serving product content correctly:
+  #      curr_language=en   (not httponly, secure, lax samesite)
+  #      curr_store=eu      (not httponly, secure, lax samesite)
+  #      store_modal_shown=true (not httponly, secure, strict samesite)
+  #    Without these, the store may redirect or serve geo-modal HTML instead
+  #    of the product page, causing parser to receive unexpected content.
+  #
+  # 3. Startup burst: PollSchedulerService enqueues ALL due products simultaneously
+  #    on first boot. With default 5 s token bucket, two products are enqueued
+  #    at t=0 and t=5 s — the second fires well within the store's rate limit
+  #    window, causing 429. The ClientSideRateLimitHandler rate-limits individual
+  #    requests but does not add jitter or stagger startup.
+  # =============================================================================
+
+  - id: task-phase-http-hardening
+    name: "HTTP Client Hardening: Browser Fingerprint + Cookie Session + Rate Limit Safety"
+    description: >
+      Replace the existing thin UserAgentHandler and ClientSideRateLimitHandler with
+      hardened equivalents that make the poller indistinguishable from a real Chrome
+      browser session. Three sub-areas:
+
+      === A. Browser Fingerprint (replaces UserAgentHandler) ===
+
+      Create Http/BrowserFingerprintHandler.cs:
+      - User-Agent: realistic Chrome 124 string by default, configurable via
+        PollOptions.UserAgent (always falls back to Chrome UA if blank or "UbiquitiStoreLurker/*").
+        Default: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+        (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+      - Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,
+        image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+      - Accept-Language: "en-US,en;q=0.9"
+      - Accept-Encoding: "gzip, deflate, br, zstd"  (HttpClient decompresses automatically)
+      - Cache-Control: "max-age=0"
+      - Upgrade-Insecure-Requests: "1"
+      - Sec-Fetch-Dest: "document"
+      - Sec-Fetch-Mode: "navigate"
+      - Sec-Fetch-Site: "none"   (direct navigation)
+      - Sec-Fetch-User: "?1"
+      - DNT: "1"
+      Remove UserAgentHandler.cs (replaced entirely).
+      Update Program.cs to register BrowserFingerprintHandler.
+      Update PollOptions: rename UserAgent clarify it is the full UA string.
+
+      === B. Cookie Session Management ===
+
+      The Ubiquiti EU store requires three cookies present in every product-page
+      request. Without them the server may serve a geo-redirect or consent page
+      instead of the product page (breaking all parsers).
+
+      Create Http/UbiquitiCookieHandler.cs (DelegatingHandler):
+      - Seed the following cookies for domain eu.store.ui.com on first use:
+          curr_language=en    (Secure; SameSite=Lax)
+          curr_store=eu       (Secure; SameSite=Lax)
+          store_modal_shown=true  (Secure; SameSite=Strict)
+      - Back the handler with a shared CookieContainer stored as a singleton.
+        All requests to the store share this container so server-set cookies
+        (e.g., eu_has_ui_care=true, session tokens) are automatically captured
+        and replayed on subsequent requests.
+      - Persist the cookie container to SQLite as a serialized JSON blob in
+        AppSettings (key: "HttpCookieSession") after each request that modifies
+        the jar. Deserialize and reload on startup from the same key.
+      - If the persisted blob is older than 24 h, discard and re-seed from scratch
+        (cookies have short max-age; re-seeding is safe).
+      - Note: HttpClientHandler must be configured with UseCookies=true and the
+        shared CookieContainer; the default AddHttpClient pipeline creates a new
+        handler per client — use a singleton HttpClientHandler registered manually
+        and passed to IHttpClientFactory via PrimaryHttpMessageHandler.
+
+      === C. Rate Limit Safety — never trigger a 429 ===
+
+      The current implementation has two gaps:
+      (i)  11 s replenishment on 5 s token bucket is borderline; real browsers do
+           not reload pages faster than ~10-15 s per navigation.
+      (ii) PollSchedulerService enqueues all due products at once on first boot
+           (startup burst), bypassing the intent of per-product intervals.
+
+      Changes required:
+      1. Increase default MinRequestGapMs in PollOptions to 12000 ms (12 s).
+         Add ±30% random jitter per request: actual gap is random(8400..15600 ms).
+         Implement in ClientSideRateLimitHandler using a SemaphoreSlim + async
+         Task.Delay(jitteredMs) pattern instead of TokenBucketRateLimiter (simpler
+         and allows jitter). Keep the existing TokenBucketRateLimiter for the
+         circuit-breaker fallback.
+      2. In PollSchedulerService, stagger initial first-poll scheduling: when a
+         product has never been polled (NextPollDueAtUtc == MinValue or null),
+         assign NextPollDueAtUtc = now + (productIndex × MinRequestGapMs) so that
+         products are spaced apart from boot, not all due at t=0.
+      3. If a 429 response is received despite the client-side limiter (server
+         returned Retry-After header), ClientSideRateLimitHandler must:
+           a. Extract Retry-After value (seconds or HTTP date).
+           b. Block ALL further requests for that duration (not just the current one)
+              by acquiring a write-lock on a shared SemaphoreSlim.
+           c. Log at Warning level with Retry-After value.
+           d. Increment Prometheus counter: rate_limit_server_429_total.
+         This is a last-resort guard — normal operation must never reach 429.
+      4. Add Prometheus gauge: poll_request_gap_ms (last observed inter-request gap)
+         for visibility.
+
+      === D. Tests ===
+
+      Unit tests (no network required):
+      - BrowserFingerprintHandler_SetsUserAgentHeader: verify Chrome UA is set
+      - BrowserFingerprintHandler_SetsAllRequiredBrowserHeaders: verify Accept,
+        Accept-Language, Sec-Fetch-Dest, Sec-Fetch-Mode, Sec-Fetch-Site all present
+      - UbiquitiCookieHandler_SeedsThreeRequiredCookies: new request to eu.store.ui.com
+        must include curr_language, curr_store, store_modal_shown cookies
+      - UbiquitiCookieHandler_PersistsServerSetCookies: mock response sets a new
+        cookie; verify CookieContainer reflects it after the request
+      - UbiquitiCookieHandler_ReloadsPersistedCookiesOnStartup: seed AppSettings with
+        a JSON blob; verify handler picks up the cookies without a network call
+      - ClientSideRateLimitHandler_RespectsJitteredGap: two consecutive requests;
+        verify elapsed time between them ≥ MinRequestGapMs × 0.7
+      - ClientSideRateLimitHandler_BlocksAllRequestsOn429WithRetryAfter: mock returns
+        429 + Retry-After: 30; a second request issued immediately must wait ≥ 30 s
+        (use ISystemClock / TimeProvider mock to avoid real delay in tests)
+
+    agent: gem-implementer
+    dependencies:
+      - task-phase-3-discovery
+    deliverable: >
+      BrowserFingerprintHandler replaces UserAgentHandler;
+      UbiquitiCookieHandler seeds and persists EU store cookies;
+      ClientSideRateLimitHandler emits jittered gaps and blocks on 429 Retry-After;
+      PollSchedulerService staggers startup bursts;
+      all 7 new unit tests pass; dotnet test suite remains green;
+      container rebuilt and redeployed; no 429 logged after 24 h of monitoring.
+    requires_review: false
+    status: completed
+    completed: "2026-03-24"
+    tech_stack:
+      - ".NET 10"
+      - "System.Net.Http.CookieContainer"
+      - "System.Threading.SemaphoreSlim"
+      - "prometheus-net 8.2.1"
+      - "NUnit 4.4.0"
+      - "NSubstitute 5.x"
+    estimated_lines: 450
+    test_coverage: >
+      7 unit tests covering fingerprint headers, cookie seeding, cookie persistence,
+      startup reload, jitter enforcement, and 429 Retry-After block behaviour.
+      All existing tests must remain green.
+
+  - id: task-phase-12-a
+    name: "Phase 12-A: UbiquitiStoreLurker.ServiceDefaults project"
+    status: completed
+    description: >
+      Create src/UbiquitiStoreLurker.ServiceDefaults/UbiquitiStoreLurker.ServiceDefaults.csproj (net10.0).
+      PackageReferences: Aspire.Hosting 9.2.*, Microsoft.Extensions.ServiceDiscovery 9.*,
+      OpenTelemetry.Exporter.OpenTelemetryProtocol 1.*, OpenTelemetry.Extensions.Hosting 1.*,
+      OpenTelemetry.Instrumentation.AspNetCore 1.*, OpenTelemetry.Instrumentation.Http 1.*,
+      OpenTelemetry.Instrumentation.Runtime 1.*, OpenTelemetry.Instrumentation.EntityFrameworkCore 1.*.
+
+      Class Extensions.cs — AddServiceDefaults(IHostApplicationBuilder builder):
+        builder.ConfigureOpenTelemetryTracerProvider(tracing =>
+          tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddEntityFrameworkCoreInstrumentation()    // auto-instruments all EF queries
+            .AddSource("UbiquitiStoreLurker.Web"));
+        builder.ConfigureOpenTelemetryMeterProvider(metrics =>
+          metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter("UbiquitiStoreLurker.Web"));
+        builder.AddOpenTelemetryExporters();  // reads OTEL_EXPORTER_OTLP_ENDPOINT; no-ops if absent
+        builder.Services.AddDefaultHealthChecks();
+
+      Production guard: ServiceDefaults only referenced from AppHost. Dockerfile copies
+      only UbiquitiStoreLurker.Web — Aspire packages never enter the runtime image.
+    agent: gem-implementer
+    dependencies:
+    estimated_lines: 80
+    verification:
+      - dotnet build src/UbiquitiStoreLurker.ServiceDefaults succeeds
+      - dotnet publish UbiquitiStoreLurker.Web → no Aspire.Hosting* DLLs in output
+    acceptance_criteria:
+      - AddServiceDefaults() registers OTel tracing, metrics, and OTLP exporter
+      - EF Core auto-instrumentation registered
+      - AddServiceDefaults() silently no-ops when OTEL_EXPORTER_OTLP_ENDPOINT is absent
+    tech_stack:
+      - ".NET 10"
+      - ".NET Aspire 9.2+"
+      - "OpenTelemetry.Instrumentation.EntityFrameworkCore 1.*"
+
+  - id: task-phase-12-b
+    name: "Phase 12-B: UbiquitiStoreLurker.AppHost project"
+    status: completed
+    description: >
+      Create src/UbiquitiStoreLurker.AppHost/UbiquitiStoreLurker.AppHost.csproj (Exe, net10.0).
+      PackageReferences: Aspire.Hosting.AppHost 9.2.*, CommunityToolkit.Aspire.Hosting.SQLite.
+
+      Program.cs:
+        var builder = DistributedApplication.CreateBuilder(args);
+
+        var smtpPassword   = builder.AddParameter("smtp-password",   secret: true);
+        var twilioToken    = builder.AddParameter("twilio-token",     secret: true);
+        var discordWebhook = builder.AddParameter("discord-webhook",  secret: true);
+        var teamsWebhook   = builder.AddParameter("teams-webhook",    secret: true);
+
+        var db = builder.AddSqlite("ubiquitistorelurker-db").WithSqliteWeb();
+
+        builder.AddProject<Projects.UbiquitiStoreLurker_Web>("ubiquitistorelurker")
+               .WithReference(db)
+               .WithHttpHealthCheck("/api/health/live")
+               .WaitFor(db)
+               .WithEnvironment("Email__Password",     smtpPassword)
+               .WithEnvironment("Twilio__AuthToken",   twilioToken)
+               .WithEnvironment("Discord__WebhookUrl", discordWebhook)
+               .WithEnvironment("Teams__WebhookUrl",   teamsWebhook);
+
+        builder.Build().Run();
+
+      Add to UbiquitiStoreLurker.slnx. Add Properties/launchSettings.json with "aspire" profile.
+      Prometheus and Grafana container resources added separately in task-phase-12-i.
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-a
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 60
+    verification:
+      - dotnet run --project src/UbiquitiStoreLurker.AppHost starts without error
+      - Aspire Dashboard at localhost:15888 shows "ubiquitistorelurker" resource Running+healthy
+      - SQLiteWeb endpoint visible in Dashboard resources list
+    acceptance_criteria:
+      - AppHost orchestrates ubiquitistorelurker-db (SQLite) + ubiquitistorelurker (web) resources
+      - .WaitFor(db) prevents app starting before DB is ready
+      - .WithSqliteWeb() adds SQLiteWeb sidecar mounting same DB file as app
+      - 4 secret parameters registered (smtp-password, twilio-token, discord-webhook, teams-webhook)
+    tech_stack:
+      - ".NET 10"
+      - ".NET Aspire 9.2+"
+      - "CommunityToolkit.Aspire.Hosting.SQLite"
+
+  - id: task-phase-12-c
+    name: "Phase 12-C: Wire ServiceDefaults into UbiquitiStoreLurker.Web"
+    status: completed
+    description: >
+      In Program.cs add before builder.Build():
+        // AddServiceDefaults wires OTLP exporter. Silently no-ops if
+        // OTEL_EXPORTER_OTLP_ENDPOINT is not set — safe in production Dockerfile.
+        builder.AddServiceDefaults();
+
+      Rename connection string key in appsettings.json:
+        "ConnectionStrings": { "Default": "..." }
+        → "ConnectionStrings": { "ubiquitistorelurker-db": "..." }
+
+      Add fallback in appsettings.Development.json:
+        "ConnectionStrings": { "ubiquitistorelurker-db": "Data Source=./dev.db" }
+
+      Update DbContext registration to use "ubiquitistorelurker-db" key.
+      Update docker-compose.yml ubiquitistorelurker env:
+        ConnectionStrings__Default=... → ConnectionStrings__ubiquitistorelurker-db=Data Source=/data/ubiquitistorelurker.db
+
+      WithReference(db) in AppHost injects ConnectionStrings__ubiquitistorelurker-db automatically.
+      Key name must match Aspire resource name exactly.
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-a
+    estimated_effort: small
+    estimated_files: 4
+    estimated_lines: 20
+    verification:
+      - dotnet run UbiquitiStoreLurker.Web (plain, no AppHost) starts and DB auto-migrates
+      - dotnet run UbiquitiStoreLurker.AppHost → DB connection injected, app healthy
+      - docker compose up → ubiquitistorelurker container connects to DB via new key name
+      - dotnet test → all 66 existing tests pass
+    acceptance_criteria:
+      - AddServiceDefaults() present in Program.cs
+      - Connection string key is "ubiquitistorelurker-db" everywhere
+      - No regression in existing 66 tests
+    tech_stack:
+      - ".NET 10"
+      - ".NET Aspire 9.2+"
+
+  - id: task-phase-12-d
+    name: "Phase 12-D: Custom ActivitySource instrumentation (11 spans)"
+    status: completed
+    description: >
+      Create src/UbiquitiStoreLurker.Web/Telemetry/UbiquitiStoreLurkerActivities.cs:
+        public static class UbiquitiStoreLurkerActivities
+        {
+            public static readonly ActivitySource Source =
+                new("UbiquitiStoreLurker.Web", "1.0.0");
+        }
+
+      Instrument 11 locations using pattern:
+        using var activity = UbiquitiStoreLurkerActivities.Source
+            .StartActivity("span.name", ActivityKind.Internal);
+        activity?.SetTag("key", value);
+        // on exception: activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+        //               activity?.RecordException(ex);
+
+      HIGH VALUE (core pipeline — dark without custom spans):
+        1. PollWorkerService         → poll.execute              tags: product.id, product.url, poll.result
+        2. CompositeStockParser      → parse.composite           tags: parser.winner, stock.state
+        3. JsonLdStockParser         → parse.jsonld              tags: parser.matched, parser.confidence
+        4. ButtonStateParser         → parse.button              tags: parser.matched, parser.confidence
+        5. TextContentParser         → parse.text                tags: parser.matched, parser.matched_phrase
+        6. StockStateMachine         → state.evaluate            tags: state.from, state.to, state.changed
+        7. NotificationDispatcher    → notification.dispatch     tags: providers, success_count, failure_count
+        8. Per-provider Send methods → notification.send.{type}  tags: provider.type, provider.success
+        9. StockHubBroadcaster       → signalr.broadcast         tags: hub.event, product.id
+
+      MEDIUM VALUE (infrastructure helpers):
+        10. PollSchedulerService.ScanForDueProductsAsync → scheduler.scan
+            tags: scheduler.products_due, scheduler.products_enqueued
+        11. UbiquitiCookieHandler → cookie.refresh (only when cookies change state)
+            tags: cookie.action (seed|persist|reload)
+
+      NOT instrumented (auto-covered): HTTP endpoints (ASP.NET Core), HttpClient.SendAsync,
+      EF Core DbContext operations (EntityFrameworkCoreInstrumentation).
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-c
+    estimated_effort: medium
+    estimated_files: 8
+    estimated_lines: 150
+    verification:
+      - dotnet run --project AppHost → Dashboard Traces tab shows poll.execute with nested children
+      - poll.execute children include parse.composite → parse.jsonld/button/text
+      - state.evaluate, notification.dispatch, signalr.broadcast visible in waterfall
+      - EF Core spans appear as automatic siblings (not manual)
+    acceptance_criteria:
+      - All 11 span names appear for a full poll cycle
+      - Error spans record exception message and stacktrace when poll or notification fails
+      - ActivitySource.StartActivity returns null when no listener — zero perf cost
+    tech_stack:
+      - ".NET 10"
+      - "System.Diagnostics.ActivitySource"
+
+  - id: task-phase-12-e
+    name: "Phase 12-E: SQLiteWeb browser verification"
+    status: completed
+    description: >
+      .WithSqliteWeb() wired in task-phase-12-b mounts the SAME SQLite file as the app.
+      Aspire coordinates the file path — the sidecar is not empty.
+
+      Verify on dotnet run AppHost:
+        - Aspire Dashboard shows "ubiquitistorelurker-db-sqliteweb" resource with endpoint link
+        - Clicking link opens SQLiteWeb UI at a dynamic port
+        - Products table shows live rows matching GET /api/products response
+        - StockChecks, NotificationLogs, AppSettings tables all browsable
+        - Arbitrary SQL (e.g. SELECT COUNT(*) FROM StockChecks) executes correctly
+
+      No UbiquitiStoreLurker.Web code changes required. Document endpoint URL pattern
+      in README.md "Development Modes" section (task-phase-12-m).
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-b
+    estimated_effort: small
+    estimated_files: 0
+    estimated_lines: 0
+    verification:
+      - SQLiteWeb UI accessible from Aspire Dashboard resource link
+      - Products and StockChecks tables show live data from running app
+    acceptance_criteria:
+      - Same SQLite file as app — data is live, not empty
+      - All entity tables browsable: Products, StockChecks, NotificationLogs, AppSettings
+
+  - id: task-phase-12-f
+    name: "Phase 12-F: Secrets / parameters first-run setup"
+    status: completed
+    description: >
+      Run dotnet user-secrets commands on first clone. Never store secrets in files.
+
+        dotnet user-secrets set "Parameters:smtp-password"   "<value>" --project src/UbiquitiStoreLurker.AppHost
+        dotnet user-secrets set "Parameters:twilio-token"    "<value>" --project src/UbiquitiStoreLurker.AppHost
+        dotnet user-secrets set "Parameters:discord-webhook" "<value>" --project src/UbiquitiStoreLurker.AppHost
+        dotnet user-secrets set "Parameters:teams-webhook"   "<value>" --project src/UbiquitiStoreLurker.AppHost
+
+      Verify:
+        dotnet user-secrets list --project src/UbiquitiStoreLurker.AppHost → 4 entries shown
+        No secrets present in any committed file
+        Aspire Dashboard → "ubiquitistorelurker" resource → Environment tab shows injected env vars
+          (Email__Password, Twilio__AuthToken, Discord__WebhookUrl, Teams__WebhookUrl)
+
+      Document first-run commands in README.md (task-phase-12-m).
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-b
+    verification:
+      - dotnet user-secrets list shows 4 parameter entries
+      - Aspire Dashboard Environment tab shows injected env vars
+      - git diff shows no secrets in committed files
+    acceptance_criteria:
+      - All 4 provider secrets injectable via Aspire parameters only
+      - First-run instructions documented in README.md
+
+  - id: task-phase-12-g
+    name: "Phase 12-G: .WaitFor() startup ordering verification"
+    status: completed
+    description: >
+      .WaitFor(db) wired in task-phase-12-b. Verify correct startup ordering.
+
+      On dotnet run AppHost observe in Aspire Dashboard:
+        - "ubiquitistorelurker-db" resource reaches Running state first
+        - "ubiquitistorelurker" resource starts only after DB is ready
+        - No "database is locked" or "no such table" errors on first boot
+
+      Elimitates the 8-crash startup sequence observed on initial deploy (INC-001 related —
+      previously self-resolved only via Docker restart policy).
+
+      Optional enhancement: add readiness probe so future downstream services wait
+      until both DB and poller heartbeat checks pass:
+        .WithHttpProbe(ProbeType.Readiness, "/api/health/ready")
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-b
+    estimated_effort: small
+    estimated_files: 0
+    estimated_lines: 5
+    verification:
+      - Dashboard shows ubiquitistorelurker-db Running before ubiquitistorelurker transitions to Starting
+      - Clean cold-start in AppHost mode with no DB race errors in logs
+    acceptance_criteria:
+      - Startup sequence enforced by .WaitFor(db)
+      - Zero migration or lock errors on first boot in AppHost mode
+
+  - id: task-phase-12-h
+    name: "Phase 12-H: Aspire.Hosting.Testing integration tests"
+    status: completed
+    description: >
+      Create tests/UbiquitiStoreLurker.AppHostTests/UbiquitiStoreLurker.AppHostTests.csproj:
+        PackageReferences: Aspire.Hosting.Testing 9.2.*, Microsoft.NET.Test.Sdk 17.*,
+        NUnit 4.4.*, NUnit3TestAdapter 4.6.*
+
+      4 NUnit tests (all require Docker daemon — tag with [Category("RequiresDocker")]):
+
+      Test 1 — AppHost_StartsHealthy:
+        await DistributedApplicationTestingBuilder.CreateAsync<Projects.UbiquitiStoreLurker_AppHost>()
+        await app.StartAsync(); await app.WaitForResourceHealthyAsync("ubiquitistorelurker", cts.Token)
+        GET /api/health/live → assert 200 OK
+        Proves: AppHost wiring correct, DB migrates, app starts.
+
+      Test 2 — AppHost_AddProduct_PollCycle_PersistsStockCheck:
+        POST /api/products { url: "https://example.com/product" }
+        poll until GET /api/products/{id}/history ≥ 1 StockCheck (60 s timeout)
+        Proves: full E2E path against real SQLite, no mocks.
+
+      Test 3 — AppHost_SignalR_ConnectAndReceiveEvent:
+        HubConnection → /ubiquitistorelurker-hub; POST /api/products/{id}/poll-now
+        assert PollCycleCompleted event received within 30 s
+        Proves: SignalR broadcasting works in real running app.
+
+      Test 4 — AppHost_SqliteWeb_Accessible:
+        retrieve SQLiteWeb endpoint from ResourceNotifications
+        GET root → assert 200 OK
+        Proves: sidecar wired correctly.
+
+      Run: dotnet test tests/UbiquitiStoreLurker.AppHostTests/ --timeout 120
+      Skip in CI without Docker: --filter "Category!=RequiresDocker"
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-b
+      - task-phase-12-c
+    estimated_effort: medium
+    estimated_files: 2
+    estimated_lines: 120
+    verification:
+      - dotnet test tests/UbiquitiStoreLurker.AppHostTests/ → 4 tests pass
+      - Tests run against real SQLite (not in-memory) and real SignalR
+    acceptance_criteria:
+      - All 4 tests pass with real running AppHost
+      - Tests tagged [Category("RequiresDocker")] so CI can skip without daemon
+    tech_stack:
+      - ".NET 10"
+      - "Aspire.Hosting.Testing 9.2.*"
+      - "NUnit 4.4.0"
+
+  - id: task-phase-12-i
+    name: "Phase 12-I: Local Prometheus + Grafana via aspire add"
+    status: completed
+    description: >
+      LOCAL ASPIRE MODE ONLY. Do NOT add containers to docker-compose.yml.
+      Proxmox Docker mode already uses existing lab Prometheus (172.18.1.1) and
+      Grafana (172.18.1.2) — scrape target and dashboard provisioned in Phase 10,
+      no new containers needed there.
+
+      Run once in src/UbiquitiStoreLurker.AppHost/:
+        aspire add prometheus
+        aspire add grafana
+
+      In AppHost Program.cs mount the existing Grafana dashboard JSON:
+        var grafana = builder.AddGrafana("grafana")
+            .WithBindMount("./grafana-provisioning", "/etc/grafana/provisioning");
+        // grafana-provisioning/dashboards/ubiquitistorelurker-dashboard.json
+        // copied from src/UbiquitiStoreLurker.Web/Grafana/ubiquitistorelurker-dashboard.json
+
+      After this: dotnet run --project AppHost starts:
+        - Prometheus at localhost:9090 (auto-scrapes app)
+        - Grafana at localhost:3000 (ubiquitistorelurker dashboard provisioned)
+        - Aspire Dashboard at localhost:15888 (traces + metrics)
+
+      Dashboard vs Grafana: complementary, not duplicate.
+        Dashboard = per-request waterfall trace (OTel spans)
+        Grafana   = time-series metric trends and rate charts (prometheus-net)
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-b
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 20
+    verification:
+      - dotnet run AppHost → Grafana at localhost:3000 shows ubiquitistorelurker dashboard
+      - Prometheus at localhost:9090/targets shows ubiquitistorelurker UP
+      - No Prometheus or Grafana containers added to docker-compose.yml
+    acceptance_criteria:
+      - Local Aspire mode only — Proxmox deploy entirely unaffected
+      - ubiquitistorelurker-dashboard.json provisioned in local Grafana container
+      - Prometheus auto-scrapes app (no manual target config needed)
+
+  - id: task-phase-12-j
+    name: "Phase 12-J: Settings migration"
+    status: completed
+    description: >
+      Apply and document full config migration across all modes.
+
+      RENAMED (done in task-phase-12-c):
+        appsettings.json: "ConnectionStrings:Default" → "ConnectionStrings:ubiquitistorelurker-db"
+        docker-compose.yml env: ConnectionStrings__Default → ConnectionStrings__ubiquitistorelurker-db
+
+      STAYS IN appsettings.json (non-sensitive — no change):
+        Serilog:*, Polling:MinIntervalSeconds=30, Polling:MaxIntervalSeconds=90,
+        Polling:MinRequestGapMs=12000, Polling:JitterPercent=30,
+        Polling:BrowserUserAgent (Chrome 124 UA), AllowedHosts
+
+      MOVES TO ASPIRE user-secrets (done in task-phase-12-f):
+        Parameters:smtp-password   → Email__Password   (env var in app)
+        Parameters:twilio-token    → Twilio__AuthToken
+        Parameters:discord-webhook → Discord__WebhookUrl
+        Parameters:teams-webhook   → Teams__WebhookUrl
+
+      INJECTED AUTOMATICALLY BY WithReference (no manual config):
+        ConnectionStrings:ubiquitistorelurker-db → Aspire generates dev path; production uses
+        volume-mounted /data/ubiquitistorelurker.db via docker-compose override unchanged
+
+      STAYS IN SQLITE, NEVER IN appsettings (no change):
+        NotificationConfig.SettingsJson: per-provider SMTP host/port/user, Twilio SID,
+          Discord/Teams webhook URLs (set via Setup UI)
+        AppSettings entity: VAPID keys, Nickname, Email, Phone, PollInterval*
+          (auto-generated or set via Setup UI)
+
+      NOTE: Provider secrets exist twice in Aspire mode — once in NotificationConfig.SettingsJson
+      (read by existing provider code) AND once as Aspire parameters (env vars, for future use).
+      Duplication intentional; no code change; future cleanup via IConfiguration binding possible.
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-c
+    estimated_effort: small
+    estimated_files: 1
+    estimated_lines: 10
+    verification:
+      - appsettings.json uses "ubiquitistorelurker-db" key (not "Default")
+      - docker-compose.yml env var updated
+      - dotnet run (plain, no AppHost) auto-migrates using appsettings.Development.json fallback
+      - All 66 tests still pass
+    acceptance_criteria:
+      - Connection string key consistent across all modes and files
+      - No secrets in any committed file
+      - README documents migration table
+
+  - id: task-phase-12-k
+    name: "Phase 12-K: Standalone Aspire Dashboard in docker-compose"
+    status: completed
+    description: >
+      Add aspire-dashboard service to src/docker-compose.yml:
+
+        aspire-dashboard:
+          image: mcr.microsoft.com/dotnet/aspire-dashboard:9.2
+          container_name: aspire-dashboard
+          restart: unless-stopped
+          networks:
+            proxy:
+              ipv4_address: 172.18.2.5    # next free IP in apps tier
+          ports:
+            - "18888:18888"               # Dashboard UI (LAN direct access)
+            - "4317:18889"                # OTLP gRPC receiver
+          environment:
+            - DASHBOARD__UNSECUREDALLOWANONYMOUS=true   # safe: protected by lan-only@file
+            - DOTNET_DASHBOARD_OTLP_ENDPOINT_URL=http://+:18889
+          labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.ubiquitistorelurker-aspire.rule=Host(`aspire.ubiquitistorelurker.rverbist.io`)"
+            - "traefik.http.routers.ubiquitistorelurker-aspire.entrypoints=websecure"
+            - "traefik.http.routers.ubiquitistorelurker-aspire.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.ubiquitistorelurker-aspire.middlewares=lan-only@file"
+            - "traefik.http.services.ubiquitistorelurker-aspire.loadbalancer.server.port=18888"
+
+      Add to ubiquitistorelurker service environment:
+        - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
+        - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+
+      Same binary as AppHost auto-launched Dashboard — zero feature difference.
+      AppHost mode and Docker compose mode are mutually exclusive (never two at once).
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-a
+    estimated_effort: small
+    estimated_files: 1
+    estimated_lines: 30
+    verification:
+      - docker compose up → aspire-dashboard container running at 172.18.2.5
+      - http://localhost:18888 shows Aspire Dashboard with ubiquitistorelurker telemetry
+      - curl /api/health/live → trace appears in Dashboard within seconds
+      - https://aspire.ubiquitistorelurker.rverbist.io accessible on Proxmox (after deploy)
+    acceptance_criteria:
+      - aspire-dashboard service at static IP 172.18.2.5 in proxy network
+      - OTLP endpoint wired: ubiquitistorelurker → aspire-dashboard:18889
+      - Traefik routes aspire.ubiquitistorelurker.rverbist.io with lan-only@file middleware
+      - TLS via letsencrypt resolver (*.rverbist.io wildcard)
+    tech_stack:
+      - "mcr.microsoft.com/dotnet/aspire-dashboard:9.2"
+      - "Docker Compose"
+      - "Traefik"
+
+  - id: task-phase-12-l
+    name: "Phase 12-L: VS Code deploy tasks"
+    status: completed
+    description: >
+      Populate .vscode/tasks.json (currently empty: { "version": "2.0.0", "tasks": [] })
+      with 4 tasks:
+
+      Task 1 — "UbiquitiStoreLurker: Build Docker Image"
+        type: shell
+        command: docker build -t ubiquitistorelurker:latest .
+        cwd: ${workspaceFolder}/docs/plan/storefront-stock-monitor-opus-20260323/src
+        group: build
+
+      Task 2 — "UbiquitiStoreLurker: Deploy — Local Docker"
+        type: shell
+        command: docker compose up --build -d
+        cwd: same as Task 1, dependsOn: Task 1, group: build
+
+      Task 3 — "UbiquitiStoreLurker: aspire publish"
+        type: shell
+        command: >
+          dotnet run --project UbiquitiStoreLurker.AppHost -- publish
+          -o ${workspaceFolder}/docs/plan/storefront-stock-monitor-opus-20260323/aspire-output
+        cwd: src/, group: build
+
+      Task 4 — "UbiquitiStoreLurker: Deploy — Proxmox"
+        type: shell, group: build
+        Sequence:
+          1. docker build -t ubiquitistorelurker:latest "$SRC"
+          2. docker save ubiquitistorelurker:latest | ssh rverbist@proxmox "docker load"
+          3. rsync -av --checksum "$SRC/docker-compose.yml" rverbist@proxmox:$REMOTE_DIR/
+          4. ssh rverbist@proxmox "cd $REMOTE_DIR && docker compose up -d --no-build"
+          5. sleep 5 && curl -sf https://ubiquitistorelurker.rverbist.io/api/health/live
+
+      Uses docker save|ssh docker load — no Docker registry required.
+      SSH key auth via existing id_ed25519 for rverbist@proxmox (per AGENTS.md).
+      Does NOT use aspire publish output for production — hand-authored docker-compose.yml
+      is authoritative for production (Traefik labels, static IPs, volume paths).
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-k
+    estimated_effort: small
+    estimated_files: 1
+    estimated_lines: 80
+    verification:
+      - "UbiquitiStoreLurker: Deploy — Local Docker task appears in VS Code Run Task list"
+      - "UbiquitiStoreLurker: Deploy — Proxmox streams image and health check returns HEALTHY"
+    acceptance_criteria:
+      - All 4 tasks in VS Code Terminal > Run Task list
+      - Proxmox deploy task requires no Docker registry
+      - Health check step confirms successful deploy
+
+  - id: task-phase-12-m
+    name: "Phase 12-M: Solution scaffolding + README documentation"
+    status: completed
+    description: >
+      Add all new projects to UbiquitiStoreLurker.slnx:
+        - src/UbiquitiStoreLurker.ServiceDefaults/
+        - src/UbiquitiStoreLurker.AppHost/
+        - tests/UbiquitiStoreLurker.AppHostTests/
+
+      Add aspire-output/ to .gitignore (contains generated aspire publish artifacts).
+
+      Update README.md with "Development Modes" section (3 modes × access URLs):
+
+        Mode 1 — Plain dotnet run (no Aspire, no Docker):
+          dotnet run --project src/UbiquitiStoreLurker.Web
+          App: http://localhost:5000 | Grafana: https://grafana.rverbist.io
+
+        Mode 2 — Aspire AppHost (dotnet run AppHost):
+          First-run secrets setup:
+            dotnet user-secrets set "Parameters:smtp-password" "<value>" --project src/UbiquitiStoreLurker.AppHost
+            (repeat for twilio-token, discord-webhook, teams-webhook)
+          dotnet run --project src/UbiquitiStoreLurker.AppHost
+          App: http://localhost:5000
+          Aspire Dashboard: http://localhost:15888
+          Grafana (local container): http://localhost:3000
+          SQLiteWeb: dynamic port shown in Dashboard resources list
+
+        Mode 3 — Docker compose (local or Proxmox):
+          docker compose up -d
+          App: http://localhost:8080 / https://ubiquitistorelurker.rverbist.io
+          Aspire Dashboard: http://localhost:18888 / https://aspire.ubiquitistorelurker.rverbist.io
+          Grafana: https://grafana.rverbist.io (existing lab — no new containers)
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-b
+      - task-phase-12-c
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 60
+    verification:
+      - dotnet build UbiquitiStoreLurker.slnx succeeds with all 5 projects
+      - aspire-output/ listed in .gitignore
+      - README.md has Development Modes section with correct URLs per mode
+    acceptance_criteria:
+      - All projects buildable from solution root
+      - First-run secrets setup documented in README
+      - Access URLs per mode clearly documented
+
+  - id: task-phase-12-n
+    name: "Phase 12-N: Production Dockerfile guard"
+    status: completed
+    description: >
+      Verify Aspire packages do NOT enter the production Docker image.
+      Dockerfile copies only UbiquitiStoreLurker.Web/ — ServiceDefaults and AppHost excluded.
+
+      Add comment above final FROM stage in Dockerfile:
+        # NOTE: UbiquitiStoreLurker.ServiceDefaults and AppHost are intentionally excluded.
+        # Aspire packages are dev-only. Production observability: prometheus-net → Grafana lab stack.
+
+      Guard test (manual or CI step):
+        docker build . -t ubiquitistorelurker:latest
+        docker run --rm --entrypoint sh ubiquitistorelurker:latest \
+          -c 'ls /app/*.dll | grep -i aspire && echo FAIL || echo PASS'
+        Expected: PASS (no Aspire DLLs found)
+
+      Verify AddServiceDefaults() no-ops in production:
+        docker run --rm ubiquitistorelurker:latest (without OTEL_EXPORTER_OTLP_ENDPOINT)
+        → app starts cleanly
+        → GET /api/health/live → 200 OK
+        → no OTel exporter errors in logs
+    agent: gem-implementer
+    dependencies:
+      - task-phase-12-c
+    estimated_effort: small
+    estimated_files: 1
+    estimated_lines: 10
+    verification:
+      - docker build → 'ls /app/*.dll | grep -i aspire' returns nothing (PASS)
+      - Production container starts without OTEL env var, logs clean
+      - https://ubiquitistorelurker.rverbist.io/api/health/live → 200 OK unaffected
+    acceptance_criteria:
+      - No Aspire.Hosting* DLLs in final Docker image
+      - AddServiceDefaults() silently no-ops when OTEL_EXPORTER_OTLP_ENDPOINT unset
+      - Production service unaffected throughout Phase 12 implementation
+
+
+risks:
+  - id: risk-1
+    description: "Playwright discovery may fail to find usable stock indicators on Ubiquiti pages"
+    mitigation: "Phase 3 gated behind user confirmation of target URLs; Playwright HAR analysis guides parser strategy"
+    affects:
+      - task-phase-3
+
+  - id: risk-2
+    description: "AngleSharp CSS selectors may break on Ubiquiti page structure changes"
+    mitigation: "Three-parser chain with confidence thresholds; Indeterminate state triggers early re-poll"
+    affects:
+      - task-phase-3
+      - task-phase-7
+
+  - id: risk-3
+    description: "Ubiquiti store may rate-limit or block the polling user agent"
+    mitigation: >
+      task-phase-http-hardening addresses all three root causes: (1) bot-identifiable
+      User-Agent replaced with Chrome 124 fingerprint; (2) required EU store cookies
+      (curr_language, curr_store, store_modal_shown) seeded and persisted via
+      UbiquitiCookieHandler; (3) jittered 12 s inter-request gap with startup burst
+      staggering prevents 429 at origin.
+    affects:
+      - task-phase-2
+      - task-phase-3
+      - task-phase-http-hardening
+
+  - id: risk-4
+    description: "gem-planner timeout risk for large plan synthesis tasks"
+    mitigation: "Orchestrator synthesizes large documents directly rather than delegating plan creation"
+    affects: []
+
+  - id: risk-5
+    description: "WhatsApp / Facebook Messenger not implemented"
+    mitigation: "Deferred to post-v1. UI shows 'Coming Soon' placeholders. 5 providers cover primary use cases."
+    affects:
+      - task-phase-4
+
+# =============================================================================
+# POST-PHASE-12 IMPROVEMENT BACKLOG — 2026-03-24
+# =============================================================================
+
+  - id: task-backlog-1
+    name: "Readiness Health Endpoint: /api/health/ready"
+    description: >
+      Currently the app exposes only /api/health/live (liveness probe: always 200
+      if the process is running). AppHost's .WithHttpHealthCheck("/api/health/ready")
+      cannot be activated because /ready does not exist, so Aspire uses the liveness
+      path as a poor substitute.
+
+      Implement a true readiness probe at GET /api/health/ready that verifies the
+      app is fully initialised and able to serve traffic:
+
+      Checks to include (all must pass for 200 OK — any failure → 503):
+        1. Database reachable: execute a lightweight EF Core query
+           (e.g. context.AppSettings.AnyAsync()) — confirms SQLite file is mounted,
+           migrations applied, WAL mode active.
+        2. Poller initialised: PollingCoordinatorService has completed its first
+           scan loop (expose via a simple bool flag or IReadinessIndicator interface).
+        3. Optional (if SignalR client count is available): hub reachable.
+
+      Implementation:
+        - Register checks in Program.cs using builder.Services.AddHealthChecks():
+            services.AddHealthChecks()
+              .AddCheck<DatabaseReadinessCheck>("database", tags: ["ready"])
+              .AddCheck<PollerReadinessCheck>("poller", tags: ["ready"])
+        - Map endpoints:
+            app.MapHealthChecks("/api/health/live",
+              new HealthCheckOptions { Predicate = _ => false });   // process alive only
+            app.MapHealthChecks("/api/health/ready",
+              new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
+        - Update AppHost Program.cs:
+            .WithHttpHealthCheck("/api/health/live")    // keep existing liveness
+            .WithHttpProbe(ProbeType.Readiness, "/api/health/ready")   // NEW
+        - Update docker-compose.yml healthcheck to use /api/health/ready.
+        - Update README "Development Modes" access URLs section.
+
+      NUnit tests:
+        - HealthEndpoint_Live_Returns200_WhenProcessRunning: existing smoke test to verify
+        - HealthEndpoint_Ready_Returns200_WhenDatabaseAccessible: WebApplicationFactory
+          with real in-memory/file SQLite — assert 200 OK.
+        - HealthEndpoint_Ready_Returns503_WhenDatabaseUnavailable: configure invalid
+          connection string — assert 503 Service Unavailable.
+
+    agent: gem-implementer
+    status: completed
+    completed: "2026-03-24"
+    dependencies:
+      - task-phase-12-b
+    deliverable: >
+      GET /api/health/ready returns 200 when DB + poller are ready, 503 otherwise;
+      AppHost .WithHttpHealthCheck("/api/health/ready") wired; docker-compose healthcheck updated;
+      3 NUnit tests pass (69/69 total).
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "Microsoft.Extensions.Diagnostics.HealthChecks"
+      - ".NET Aspire 9.2+"
+      - "NUnit 4.4.0"
+    estimated_lines: 150
+    test_coverage: "3 NUnit tests: live 200, ready 200 (DB ok), ready 503 (DB unavailable)"
+
+  - id: task-backlog-2
+    name: "OTLP Push to Lab OpenTelemetry Collector"
+    description: >
+      Currently observability is pull-only: Prometheus scrapes /api/metrics every
+      15 s. Adding an OTel Collector sidecar enables push-based OTLP telemetry
+      (traces + metrics) to flow into the existing lab Prometheus and Grafana
+      without changing Traefik routing.
+
+      Architecture:
+        UbiquitiStoreLurker app
+          → OTLP gRPC (push)
+          → otel/opentelemetry-collector-contrib sidecar
+          → Prometheus remote-write → existing lab Prometheus (172.18.1.1)
+          → Grafana (172.18.1.2) — no dashboard changes needed
+
+        Aspire Dashboard (standalone, 172.18.2.5) continues to receive OTLP from
+        the app directly on port 18889 (existing wiring from task-phase-12-k).
+        The Collector is an ADDITIONAL consumer — not a replacement.
+
+      Steps:
+        1. Add otel-collector service to src/docker-compose.yml:
+             otel-collector:
+               image: otel/opentelemetry-collector-contrib:latest
+               container_name: ubiquitistorelurker-otel-collector
+               restart: unless-stopped
+               networks:
+                 proxy:
+                   ipv4_address: 172.18.2.6    # next free IP in apps tier
+               volumes:
+                 - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+               command: ["--config=/etc/otelcol-contrib/config.yaml"]
+
+        2. Author src/otel-collector.yaml:
+             receivers:
+               otlp:
+                 protocols:
+                   grpc:
+                     endpoint: 0.0.0.0:4317
+             exporters:
+               prometheusremotewrite:
+                 endpoint: http://172.18.1.1:9090/api/v1/write
+               logging:
+                 loglevel: warn
+             service:
+               pipelines:
+                 traces:
+                   receivers: [otlp]
+                   exporters: [logging]
+                 metrics:
+                   receivers: [otlp]
+                   exporters: [prometheusremotewrite, logging]
+
+        3. Add second OTLP target to ubiquitistorelurker service environment:
+             - OTEL_EXPORTER_OTLP_ENDPOINT=http://ubiquitistorelurker-otel-collector:4317
+           Note: the app already pushes to aspire-dashboard:18889 via the existing
+           env var. Either fan-out via OTel SDK multi-exporter or point to Collector
+           and have Collector forward to both. Prefer Collector fan-out to keep
+           app config simple (single endpoint).
+
+        4. Verify Prometheus remote-write is enabled on the lab Prometheus instance
+           (/opt/docker/infra/monitoring/docker-compose.yml) — add --web.enable-remote-write-receiver
+           flag if not already present.
+
+        5. Validate end-to-end:
+             a. docker compose up → otel-collector healthy
+             b. Trigger a poll cycle
+             c. Prometheus UI (prometheus.rverbist.io): query ubiquitistorelurker_checks_total
+                shows data from BOTH scrape AND remote-write
+             d. Aspire Dashboard (aspire.ubiquitistorelurker.rverbist.io): traces still visible
+
+        6. Document in README: "Observability — Pull vs Push" section explaining
+           the dual-path architecture.
+
+    agent: gem-devops
+    status: completed
+    completed: "2026-03-24"
+    dependencies:
+      - task-phase-12-k
+    deliverable: >
+      otel-collector service at 172.18.2.6 in docker-compose; otel-collector.yaml
+      authored (receivers: OTLP gRPC; exporters: prometheusremotewrite + otlp/aspire + debug);
+      OTEL_EXPORTER_OTLP_ENDPOINT rerouted from aspire-dashboard:18889 to Collector on 4317;
+      Collector fans out metrics to Prometheus remote-write and traces to Aspire Dashboard;
+      lab Prometheus --web.enable-remote-write-receiver flag added;
+      README documents dual-path architecture.
+    requires_review: false
+    tech_stack:
+      - "otel/opentelemetry-collector-contrib"
+      - "Prometheus remote-write"
+      - "Docker Compose"
+      - ".NET 10 OpenTelemetry SDK"
+    estimated_lines: 60
+
+  - id: task-backlog-3
+    name: "Aspire Test Secrets: Seed Provider Secrets in AppHostTests"
+    description: >
+      Aspire.Hosting.Testing Test 1 (AppHost_StartsHealthy) currently passes with
+      no secrets set — this is correct because all 5 notification providers are
+      disabled by default in NotificationConfig (SQLite AppSettings). However, the
+      test exercises zero notification code paths, meaning provider DI registration
+      errors (missing config, null secrets) would be silently masked.
+
+      This task adds test-time secret seeding to AppHostTests so that provider
+      registration is exercised with realistic (but test-safe) configuration.
+
+      Steps:
+        1. In AppHostIntegrationTests.cs, before awaiting StartAsync(), inject test
+           secrets using the Aspire Testing API:
+             var appHost = await DistributedApplicationTestingBuilder
+               .CreateAsync<Projects.UbiquitiStoreLurker_AppHost>();
+             appHost.Configuration["Parameters:smtp-password"]   = "test-smtp-password";
+             appHost.Configuration["Parameters:twilio-token"]    = "test-twilio-token";
+             appHost.Configuration["Parameters:discord-webhook"] = "http://localhost/discord-test";
+             appHost.Configuration["Parameters:teams-webhook"]   = "http://localhost/teams-test";
+
+        2. Add a new test: AppHost_WithSeededSecrets_ProvidersRegistered
+             - Start AppHost with secrets above injected
+             - GET /api/settings → assert Email.Enabled, SMS.Enabled fields are present
+               in response (providers registered, even if unconfigured in DB)
+             - POST /api/settings/Email__SmtpHost with value "smtp.test.local"
+             - GET /api/settings → assert Email__SmtpHost == "smtp.test.local"
+             - This does NOT send a real notification — it verifies the DI chain
+               and Settings API accept provider config without crashing.
+
+        3. Keep existing Test 1 (AppHost_StartsHealthy) unchanged — it validates
+           the zero-secrets baseline still works (graceful degradation).
+
+        4. Tag the new test [Category("RequiresDocker")] consistent with existing tests.
+
+      Goal: distinguish between "providers work with no secrets" (current) and
+      "providers work with secrets present" (new), catching DI/config binding
+      regressions early.
+
+    agent: gem-implementer
+    status: completed
+    completed: "2026-03-24"
+    dependencies:
+      - task-phase-12-h
+    deliverable: >
+      1 new tagged test in AppHostIntegrationTests.cs: AppHost_WithSeededSecrets_ProvidersRegistered;
+      seeds smtp-password/twilio-token/discord-webhook/teams-webhook via appBuilder.Configuration;
+      verifies app boots without DI crash, GET /api/settings returns 200 with defaults,
+      PUT /api/settings persists Nickname+Email, GET confirms round-trip;
+      all 4 existing AppHostTests unchanged; main test suite 69/69 pass.
+    requires_review: false
+    tech_stack:
+      - ".NET 10"
+      - "Aspire.Hosting.Testing 9.2.*"
+      - "NUnit 4.4.0"
+    estimated_lines: 50
+    test_coverage: "1 new integration test; 5 existing tests unchanged"

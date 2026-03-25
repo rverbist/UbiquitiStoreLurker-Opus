@@ -1,0 +1,50 @@
+# OpenTelemetry Collector configuration for UbiquitiStoreLurker
+#
+# Architecture:
+#   UbiquitiStoreLurker app → OTLP gRPC (:4317) → THIS COLLECTOR
+#     ├─ metrics → Prometheus remote-write → lab Prometheus (172.18.1.1:9090)
+#     └─ traces  → OTLP gRPC → Aspire Dashboard (172.18.2.5:18889)
+#
+# This keeps the app config simple (single OTLP endpoint) while fanning out
+# telemetry to both the lab stack (pull model stays unchanged) and the Aspire
+# Dashboard (trace visibility in Docker compose mode).
+
+file_format: "0.3"
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+exporters:
+  # Push metrics to lab Prometheus via remote-write
+  # Requires --web.enable-remote-write-receiver on the Prometheus container
+  prometheusremotewrite:
+    endpoint: http://172.18.1.1:9090/api/v1/write
+    tls:
+      insecure: true
+
+  # Forward traces to the standalone Aspire Dashboard
+  otlp/aspire:
+    endpoint: http://172.18.2.5:18889
+    tls:
+      insecure: true
+
+  # Minimal logging for collector-level diagnostics
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheusremotewrite, otlp/aspire, debug]
+
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/aspire, debug]
+
+    logs:
+      receivers: [otlp]
+      exporters: [otlp/aspire, debug]

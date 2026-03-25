@@ -1,0 +1,91 @@
+# Auto-detect text files and normalize line endings to LF on check-in.
+* text=auto eol=lf
+
+# C# source
+*.cs     text diff=csharp
+*.csx    text diff=csharp
+*.cake   text diff=csharp
+*.razor  text diff=html
+*.cshtml text diff=html
+
+# XML / config
+*.xml    text
+*.config text
+*.csproj text diff=xml
+*.vbproj text diff=xml
+*.fsproj text diff=xml
+*.props  text diff=xml
+*.targets text diff=xml
+*.slnx   text
+*.sln    text eol=crlf
+
+# Web
+*.html   text diff=html
+*.htm    text diff=html
+*.css    text diff=css
+*.scss   text diff=css
+*.less   text diff=css
+*.js     text
+*.ts     text
+*.jsx    text
+*.tsx    text
+*.json   text
+*.yaml   text
+*.yml    text
+*.toml   text
+
+# Markdown / docs
+*.md     text diff=markdown
+*.mdx    text diff=markdown
+*.txt    text
+*.rst    text
+
+# Shell scripts — always LF
+*.sh     text eol=lf
+*.bash   text eol=lf
+
+# Windows batch files — always CRLF
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.ps1    text eol=crlf
+
+# Docker
+Dockerfile    text eol=lf
+*.dockerfile  text eol=lf
+.dockerignore text
+
+# SQL
+*.sql    text
+
+# Protobuf
+*.proto  text
+
+# Binary files — no line-ending conversion, no diff
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.svg    text
+*.webp   binary
+*.bmp    binary
+*.tiff   binary
+*.ttf    binary
+*.otf    binary
+*.eot    binary
+*.woff   binary
+*.woff2  binary
+*.pdf    binary
+*.zip    binary
+*.tar    binary
+*.gz     binary
+*.7z     binary
+*.rar    binary
+*.exe    binary
+*.dll    binary
+*.pdb    binary
+*.lib    binary
+*.nupkg  binary
+*.snupkg binary
+*.db     binary
+*.sqlite binary

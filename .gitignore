@@ -1,0 +1,101 @@
+## .NET / C# build outputs
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+
+## Visual Studio
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docview
+*.userprefs
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Local History
+.history/
+.localhistory/
+.vshistory/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## Node / frontend
+node_modules/
+dist/
+.vite/
+.npm/
+
+## Test results & coverage
+[Tt]est[Rr]esult*/
+TestResults/
+coverage/
+*.cobertura.xml
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+BenchmarkDotNet.Artifacts/
+
+## SQLite databases (runtime data)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+## Logs & temp
+*.log
+*.tmp
+*.tmp_proj
+
+## Environment & secrets — never commit real secrets
+.env
+.env.*
+!.env.example
+
+## Aspire publish output
+aspire-output/
+.aspire/
+
+## Docker
+.dockerignore
+
+## JetBrains Rider
+*.sln.iml
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## macOS
+.DS_Store
+*.DS_Store
+
+## Windows
+Thumbs.db
+desktop.ini

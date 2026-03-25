@@ -1,0 +1,400 @@
+[
+  {
+    "target": {
+      "url": "https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-4",
+      "filename": "real-unas-pro-4-outofstock.html",
+      "harFile": "real-unas-pro-4-outofstock.har",
+      "label": "UNAS Pro 4 (expected: out-of-stock)"
+    },
+    "indicators": {
+      "jsonLdCount": 1,
+      "jsonLdBlocks": [
+        {
+          "attributes": {
+            "id": "product-jsonld",
+            "type": "application/ld+json",
+            "data-next-head": ""
+          },
+          "parsed": {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "brand": {
+              "@type": "Brand",
+              "name": "Ubiquiti"
+            },
+            "name": "UNAS Pro 4",
+            "sku": "UNAS-Pro-4",
+            "description": "1U rack-mount NAS with (4) 2.5/3.5\" HDD bays and (2) M.2 NVMe SSD cache slots, delivering faster access, lower latency, and high-availability 10 Gbps networking for large-scale file storage and sharing.",
+            "url": "https://eu.store.ui.com/eu/en/products/unas-pro-4",
+            "image": {
+              "@type": "ImageObject",
+              "url": "https://cdn.ecomm.ui.com/products/1e8ea561-a3af-4f50-92b4-b7ef3a37a66a/f9894013-e187-4296-8bf6-ca52271d4d89.png",
+              "width": "3000",
+              "height": "3000"
+            },
+            "offers": {
+              "@type": "Offer",
+              "availability": "https://schema.org/OutOfStock",
+              "priceSpecification": {
+                "@type": "PriceSpecification",
+                "price": 449,
+                "priceCurrency": "EUR",
+                "valueAddedTaxIncluded": false
+              }
+            }
+          }
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Open",
+          "classes": "sc-9g0maw-7 VuqIa",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "submit"
+        },
+        {
+          "text": "",
+          "classes": "sc-9g0maw-8 cwetmf",
+          "disabled": false,
+          "ariaLabel": "Close",
+          "type": "submit"
+        },
+        {
+          "text": "Continue to Europe Store",
+          "classes": "sc-plhx78-2 udEvt sc-pyqe1m-5 fMrPpV",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "Select Other Country / Region",
+          "classes": "sc-pyqe1m-6 ixFFKn",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-pyqe1m-7 kLQPIn",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-1qtktp6-23 jqjeZT",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "submit"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 gYyRtM",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "+7more",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "1 video",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        }
+      ],
+      "stockTextNodes": [
+        "Sold Out",
+        "To subscribe to back in stock emails.",
+        "Add to Cart",
+        "{\"props\":{\"pageProps\":{\"referer\":null,\"isAppView\":false,\"isStoreAppView\":false,\"storeAppEventVersion"
+      ],
+      "title": "UNAS Pro 4 - Ubiquiti Store Europe",
+      "metaDescription": "1U rack-mount NAS with (4) 2.5/3.5\" HDD bays and (2) M.2 NVMe SSD cache slots, delivering faster access, lower latency, and high-availability 10 Gbps networking for large-scale file storage and sharing.",
+      "stockAttrElements": []
+    },
+    "mainResponseStatus": 200
+  },
+  {
+    "target": {
+      "url": "https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-8",
+      "filename": "real-unas-pro-8-instock.html",
+      "harFile": "real-unas-pro-8-instock.har",
+      "label": "UNAS Pro 8 (expected: in-stock)"
+    },
+    "indicators": {
+      "jsonLdCount": 1,
+      "jsonLdBlocks": [
+        {
+          "attributes": {
+            "id": "product-jsonld",
+            "type": "application/ld+json",
+            "data-next-head": ""
+          },
+          "parsed": {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "brand": {
+              "@type": "Brand",
+              "name": "Ubiquiti"
+            },
+            "name": "UNAS Pro 8",
+            "sku": "UNAS-Pro-8",
+            "description": "2U rack-mount NAS with (8) 2.5/3.5\" HDD bays and (2) M.2 NVMe SSD cache slots, delivering faster access, lower latency, and high-availability 10 Gbps networking for large-scale file storage and sharing.",
+            "url": "https://eu.store.ui.com/eu/en/products/unas-pro-8",
+            "image": {
+              "@type": "ImageObject",
+              "url": "https://cdn.ecomm.ui.com/products/c834c44a-84e4-426f-975b-48f0842396bd/6e6eeaf6-aee7-4694-9858-d4f04c148dd6.png",
+              "width": "3000",
+              "height": "3000"
+            },
+            "offers": {
+              "@type": "Offer",
+              "availability": "https://schema.org/InStock",
+              "priceSpecification": {
+                "@type": "PriceSpecification",
+                "price": 719,
+                "priceCurrency": "EUR",
+                "valueAddedTaxIncluded": false
+              }
+            }
+          }
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Open",
+          "classes": "sc-9g0maw-7 VuqIa",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "submit"
+        },
+        {
+          "text": "",
+          "classes": "sc-9g0maw-8 cwetmf",
+          "disabled": false,
+          "ariaLabel": "Close",
+          "type": "submit"
+        },
+        {
+          "text": "Continue to Europe Store",
+          "classes": "sc-plhx78-2 udEvt sc-pyqe1m-5 fMrPpV",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "Select Other Country / Region",
+          "classes": "sc-pyqe1m-6 ixFFKn",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-pyqe1m-7 kLQPIn",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-1qtktp6-23 jqjeZT",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "submit"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 gYyRtM",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "+6more",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "1 video",
+          "classes": "sc-12saxh8-0 iYcxjP sc-ziu8v3-1 llYmhi",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        },
+        {
+          "text": "",
+          "classes": "sc-12saxh8-0 iYcxjP sc-1vx27g9-2 itiYz",
+          "disabled": false,
+          "ariaLabel": null,
+          "type": "button"
+        }
+      ],
+      "stockTextNodes": [
+        "Add to Cart",
+        "{\"props\":{\"pageProps\":{\"referer\":null,\"isAppView\":false,\"isStoreAppView\":false,\"storeAppEventVersion"
+      ],
+      "title": "UNAS Pro 8 - Ubiquiti Store Europe",
+      "metaDescription": "2U rack-mount NAS with (8) 2.5/3.5\" HDD bays and (2) M.2 NVMe SSD cache slots, delivering faster access, lower latency, and high-availability 10 Gbps networking for large-scale file storage and sharing.",
+      "stockAttrElements": []
+    },
+    "mainResponseStatus": 200
+  }
+]

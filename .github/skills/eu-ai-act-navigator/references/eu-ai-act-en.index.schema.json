@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "DocumentDto",
+  "type": "object",
+  "description": "JSON Schema for DocumentDto",
+  "additionalProperties": false,
+  "properties": {
+    "metadata": {
+      "$ref": "#/definitions/DocumentMetadataDto"
+    },
+    "definitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DocDefinitionDto"
+      }
+    },
+    "chapters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DocNodeDto"
+      }
+    },
+    "annexes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DocNodeDto"
+      }
+    },
+    "recitals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DocNodeDto"
+      }
+    }
+  },
+  "definitions": {
+    "DocumentMetadataDto": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scanDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "totalNodes": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalDefinitions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nodesByType": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    },
+    "DocDefinitionDto": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "anchor": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "referenced": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "DocNodeDto": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "endLine": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "type": {
+          "type": "string"
+        },
+        "anchor": {
+          "type": "string"
+        },
+        "depth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "parent": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "heading": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "fullTitle": {
+          "type": "string"
+        },
+        "children": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "referencing": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "referenced": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "terminology": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
