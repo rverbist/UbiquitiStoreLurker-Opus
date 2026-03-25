@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -6,6 +7,7 @@ using UbiquitiStoreLurker.Web.Data;
 using UbiquitiStoreLurker.Web.Data.Entities;
 using UbiquitiStoreLurker.Web.Hubs;
 using UbiquitiStoreLurker.Web.Metrics;
+using UbiquitiStoreLurker.Web.Services;
 using UbiquitiStoreLurker.Web.Services.Parsing;
 using UbiquitiStoreLurker.Web.Services.Notifications;
 using UbiquitiStoreLurker.Web.Services.StateMachine;
@@ -135,6 +137,27 @@ public sealed partial class PollWorkerService(
         var product = await db.Products.FindAsync([item.ProductId], ct);
         if (product is not null)
         {
+            // Enrich metadata on the first successful fetch (name not yet populated)
+            if (html is not null && product.Name is null)
+            {
+                var extractor = scope.ServiceProvider.GetRequiredService<ProductInfoExtractor>();
+                var info = await extractor.ExtractAsync(html, ct);
+
+                if (info.Name is not null) product.Name = info.Name;
+                if (info.ProductCode is not null) product.ProductCode = info.ProductCode;
+                if (info.Description is not null) product.Description = info.Description;
+                if (info.ImageUrl is not null) product.ImageUrl = info.ImageUrl;
+                if (info.ImageUrls is { Length: > 0 })
+                    product.ImageUrls = JsonSerializer.Serialize(info.ImageUrls);
+            }
+
+            // Download and cache the primary image if not yet stored locally
+            if (product.ImageUrl is not null && product.LocalImagePath is null)
+            {
+                var imageService = scope.ServiceProvider.GetRequiredService<ProductImageService>();
+                product.LocalImagePath = await imageService.DownloadAndCacheAsync(product.Id, product.ImageUrl, ct);
+            }
+
             TransitionResult? transitionResult = null;
             if (parseResult is not null)
             {

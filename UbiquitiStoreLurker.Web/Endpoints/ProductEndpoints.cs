@@ -147,7 +147,8 @@ public static class ProductEndpoints
     }
 
     private static ProductDto ToDto(Product p) => new(
-        p.Id, p.Url, p.ProductCode, p.Name, p.Description, p.ImageUrl,
+        p.Id, p.Url, p.ProductCode, p.Name, p.Description,
+        p.LocalImagePath ?? p.ImageUrl,
         p.CurrentState, p.IsActive, p.SubscribedEvents,
         p.NextPollDueAtUtc, p.LastPollAtUtc, p.LastStateChangeAtUtc,
         p.PollCount, p.ErrorCount);

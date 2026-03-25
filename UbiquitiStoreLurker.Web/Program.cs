@@ -10,6 +10,7 @@ using UbiquitiStoreLurker.Web.Data;
 using UbiquitiStoreLurker.Web.Endpoints;
 using UbiquitiStoreLurker.Web.Http;
 using UbiquitiStoreLurker.Web.Metrics;
+using UbiquitiStoreLurker.Web.Services;
 using UbiquitiStoreLurker.Web.Services.Health;
 using UbiquitiStoreLurker.Web.Services.Parsing;
 using UbiquitiStoreLurker.Web.Services.Polling;
@@ -129,6 +130,15 @@ try
         .GetSection(PollOptions.SectionName)
         .Get<PollOptions>() ?? new PollOptions();
 
+    // HTTP client for downloading product images to the local cache
+    builder.Services.AddHttpClient("ImageDownloader", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+    });
+
     // Singleton cookie jar — seeds required EU store cookies and persists server-set
     // cookies across handler-chain rotations and container restarts.
     builder.Services.AddSingleton<UbiquitiCookieJar>();
@@ -182,6 +192,7 @@ try
     builder.Services.AddTransient<IStockParser, TextContentParser>(sp => sp.GetRequiredService<TextContentParser>());
     builder.Services.AddTransient<CompositeStockParser>();
     builder.Services.AddTransient<ProductInfoExtractor>();
+    builder.Services.AddTransient<ProductImageService>();
     builder.Services.AddTransient<StockStateMachine>();
 
     // Notification providers

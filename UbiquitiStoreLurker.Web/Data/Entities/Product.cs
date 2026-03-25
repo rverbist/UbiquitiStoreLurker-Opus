@@ -24,6 +24,10 @@ public class Product
     // JSON array of image URLs
     public string? ImageUrls { get; set; }
 
+    // Relative web path to the locally cached primary image (e.g. /images/products/1.jpg)
+    [MaxLength(512)]
+    public string? LocalImagePath { get; set; }
+
     public StockState CurrentState { get; set; } = StockState.Unknown;
     public StockState PreviousState { get; set; } = StockState.Unknown;
 

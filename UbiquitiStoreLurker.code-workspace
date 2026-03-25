@@ -1,5 +1,4 @@
 {
-    "remoteAuthority": "ssh-remote+proxmox.rverbist.io",
     "folders": [
         {
             "path": "."
@@ -25,8 +24,8 @@
             "docker-compose*.yml": "dockercompose"
         },
         // ── Terminal ──────────────────────────────────────────────────────────────────
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "terminal.integrated.cwd": "/home/rverbist/UbiquitiStoreLurker-Opus",
+        "terminal.integrated.defaultProfile.windows": "PowerShell",
+        "terminal.integrated.cwd": "${workspaceFolder}",
         // ── Markdown ─────────────────────────────────────────────────────────────────
         "markdownlint.config": {
             "extends": ".markdownlint.json"
@@ -36,11 +35,7 @@
         "yaml.format.enable": true,
         "yaml.validate": true,
         // ── PowerShell ───────────────────────────────────────────────────────────────
-        "powershell.powerShellAdditionalExePaths": {
-            "PowerShell 7 (pwsh)": "/usr/local/bin/pwsh"
-        },
         "powershell.powerShellDefaultVersion": "PowerShell 7 (pwsh)",
-        // ── Remote / SSH ──────────────────────────────────────────────────────────────
-        "powershell.cwd": "UbiquitiStoreLurker-Opus"
+        "powershell.cwd": "${workspaceFolder}"
     }
 }

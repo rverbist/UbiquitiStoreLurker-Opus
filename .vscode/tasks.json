@@ -7,7 +7,7 @@
             "type": "shell",
             "command": "dotnet restore UbiquitiStoreLurker.slnx",
             "options": {
-                "cwd": "/home/rverbist/UbiquitiStoreLurker-Opus"
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "problemMatcher": "$msCompile",
@@ -23,7 +23,7 @@
             "type": "shell",
             "command": "dotnet build UbiquitiStoreLurker.slnx",
             "options": {
-                "cwd": "/home/rverbist/UbiquitiStoreLurker-Opus"
+                "cwd": "${workspaceFolder}"
             },
             "group": {
                 "kind": "build",
@@ -42,7 +42,7 @@
             "type": "shell",
             "command": "dotnet build UbiquitiStoreLurker.slnx --no-incremental",
             "options": {
-                "cwd": "/home/rverbist/UbiquitiStoreLurker-Opus"
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "problemMatcher": "$msCompile",
@@ -58,7 +58,7 @@
             "type": "shell",
             "command": "dotnet clean UbiquitiStoreLurker.slnx",
             "options": {
-                "cwd": "/home/rverbist/UbiquitiStoreLurker-Opus"
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "problemMatcher": "$msCompile",
@@ -70,6 +70,22 @@
             }
         },
         // ── RUN ───────────────────────────────────────────────────────────────────────
+        {
+            "label": "Run (Aspire)",
+            "type": "shell",
+            "command": "dotnet run --project UbiquitiStoreLurker.AppHost/UbiquitiStoreLurker.AppHost.csproj",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": "$msCompile",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            }
+        },
         // ── DEPLOY ────────────────────────────────────────────────────────────────────
         {
             // Builds the Docker image from src/, syncs docker-compose.yml + otel-collector.yaml to
@@ -79,7 +95,7 @@
             "type": "shell",
             "command": "./deploy-docker.sh",
             "options": {
-                "cwd": "/home/rverbist/UbiquitiStoreLurker-Opus"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
             "presentation": {
