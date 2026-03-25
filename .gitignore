@@ -23,11 +23,6 @@ artifacts/
 *.sln.docview
 *.userprefs
 .vs/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
 
 ## Local History
 .history/

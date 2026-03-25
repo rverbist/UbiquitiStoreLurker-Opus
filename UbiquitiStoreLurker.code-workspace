@@ -1,12 +1,12 @@
 {
     "remoteAuthority": "ssh-remote+proxmox.rverbist.io",
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-        "window.title": "Proxmox",
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "window.title": "USL-1",
         // ── Editor ──────────────────────────────────────────────────────────────────
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
@@ -42,5 +42,5 @@
         "powershell.powerShellDefaultVersion": "PowerShell 7 (pwsh)",
         // ── Remote / SSH ──────────────────────────────────────────────────────────────
         "powershell.cwd": "UbiquitiStoreLurker-Opus"
-	}
+    }
 }
