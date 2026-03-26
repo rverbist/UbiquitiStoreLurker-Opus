@@ -5,7 +5,7 @@
         }
     ],
     "settings": {
-        "window.title": "USL-1",
+        "window.title": "USW",
         // ── Editor ──────────────────────────────────────────────────────────────────
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
@@ -20,8 +20,7 @@
         "files.insertFinalNewline": true,
         "files.associations": {
             "*.conf": "properties",
-            "*.env": "dotenv",
-            "docker-compose*.yml": "dockercompose"
+            "*.env": "dotenv"
         },
         // ── Terminal ──────────────────────────────────────────────────────────────────
         "terminal.integrated.defaultProfile.windows": "PowerShell",
@@ -36,6 +35,10 @@
         "yaml.validate": true,
         // ── PowerShell ───────────────────────────────────────────────────────────────
         "powershell.powerShellDefaultVersion": "PowerShell 7 (pwsh)",
-        "powershell.cwd": "${workspaceFolder}"
+        "powershell.cwd": "${workspaceFolder}",
+		"files.exclude": {
+			"**/bin/": true,
+			"**/obj/": true
+		}
     }
 }

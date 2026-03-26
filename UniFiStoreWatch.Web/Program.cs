@@ -6,18 +6,17 @@ using Microsoft.Extensions.Http.Resilience;
 using Prometheus;
 using Serilog;
 using Serilog.Formatting.Compact;
-using UbiquitiStoreLurker.Web.Data;
-using UbiquitiStoreLurker.Web.Endpoints;
-using UbiquitiStoreLurker.Web.Http;
-using UbiquitiStoreLurker.Web.Metrics;
-using UbiquitiStoreLurker.Web.Services;
-using UbiquitiStoreLurker.Web.Services.Health;
-using UbiquitiStoreLurker.Web.Services.Parsing;
-using UbiquitiStoreLurker.Web.Services.Polling;
-using UbiquitiStoreLurker.Web.Services.StateMachine;
-using UbiquitiStoreLurker.Web.Services.Notifications;
-using UbiquitiStoreLurker.Web.Hubs;
-using UbiquitiStoreLurker.ServiceDefaults;
+using UniFiStoreWatch.Web.Data;
+using UniFiStoreWatch.Web.Endpoints;
+using UniFiStoreWatch.Web.Http;
+using UniFiStoreWatch.Web.Metrics;
+using UniFiStoreWatch.Web.Services;
+using UniFiStoreWatch.Web.Services.Health;
+using UniFiStoreWatch.Web.Services.Parsing;
+using UniFiStoreWatch.Web.Services.Polling;
+using UniFiStoreWatch.Web.Services.StateMachine;
+using UniFiStoreWatch.Web.Services.Notifications;
+using UniFiStoreWatch.Web.Hubs;
 
 // Bootstrap logger (captures startup errors before full config loads)
 Log.Logger = new LoggerConfiguration()
@@ -28,12 +27,9 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    Log.Information("Starting UbiquitiStoreLurker");
+    Log.Information("Starting UniFiStoreWatch");
 
     var builder = WebApplication.CreateBuilder(args);
-
-    // Wires OpenTelemetry, health checks, and service discovery; no-ops in production without OTEL env vars
-    builder.AddServiceDefaults();
 
     builder.Host.UseSerilog((context, services, configuration) =>
     {
@@ -45,9 +41,9 @@ try
             .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning);
 
-        // Forward logs to Aspire dashboard / OTLP collector.
-        // UseSerilog() replaces the ILogger pipeline so the OTel logger provider wired by
-        // AddServiceDefaults() never runs; the Serilog OpenTelemetry sink is the bridge.
+        // Forward logs to any configured OTLP collector.
+        // UseSerilog() replaces the default ILogger pipeline, so the Serilog
+        // OpenTelemetry sink is the bridge for exported logs.
         var otlpEndpoint = context.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(otlpEndpoint))
         {
@@ -93,16 +89,16 @@ try
     builder.Services.AddProblemDetails();
 
     // Add DbContext
-    builder.Services.AddDbContext<UbiquitiStoreLurkerDbContext>(options =>
+    builder.Services.AddDbContext<UniFiStoreWatchDbContext>(options =>
     {
-        var dbPath = builder.Configuration.GetConnectionString("ubiquitistorelurker-db")
-            ?? "Data Source=/data/ubiquitistorelurker.db";
+        var dbPath = builder.Configuration.GetConnectionString("UniFiStoreWatch-db")
+            ?? "Data Source=/data/UniFiStoreWatch.db";
         options.UseSqlite(dbPath)
                .AddInterceptors(new SqliteWalModeInterceptor());
     });
 
     builder.Services.AddHealthChecks()
-        .AddDbContextCheck<UbiquitiStoreLurkerDbContext>("db")
+        .AddDbContextCheck<UniFiStoreWatchDbContext>("db")
         .AddCheck<DatabaseReadinessCheck>("database", tags: ["ready"])
         .AddCheck<PollerReadinessCheck>("poller", tags: ["ready"]);
 
@@ -148,7 +144,7 @@ try
     builder.Services.AddTransient<BrowserFingerprintHandler>();
     builder.Services.AddTransient<UbiquitiCookieHandler>();
 
-    builder.Services.AddHttpClient("UbiquitiStoreLurkerPoller", client =>
+    builder.Services.AddHttpClient("UniFiStoreWatchPoller", client =>
     {
         client.Timeout = TimeSpan.FromSeconds(60);
     })
@@ -212,11 +208,46 @@ try
     // Auto-migrate on startup
     using (var scope = app.Services.CreateScope())
     {
-        var db = scope.ServiceProvider.GetRequiredService<UbiquitiStoreLurkerDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatchDbContext>();
         await db.Database.MigrateAsync();
     }
 
     app.UseHttpMetrics();
+
+    // Route UI shells before static files
+    var claudeDashboard = System.IO.Path.Combine(app.Environment.WebRootPath, "claude", "index.html");
+    var vueSpa = System.IO.Path.Combine(app.Environment.WebRootPath, "index.html");
+
+    app.Use(async (context, next) =>
+    {
+        var path = context.Request.Path.Value ?? "";
+
+        // Claude dashboard (v2) — primary UI on /, /monitor, /v2/monitor, /claude
+        if (path.Equals("/", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/monitor", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/monitor/", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/v2/monitor", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/v2/monitor/", StringComparison.OrdinalIgnoreCase)
+)
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.SendFileAsync(claudeDashboard);
+            return;
+        }
+
+        // Vue SPA (v1) — legacy UI at /v1/monitor
+        if (path.Equals("/v1/monitor", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/v1/monitor/", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.SendFileAsync(vueSpa);
+            return;
+        }
+
+        await next();
+    });
+
+    app.UseStaticFiles();
 
     app.UseSerilogRequestLogging();
 
@@ -226,7 +257,7 @@ try
     // VAPID key generation if not present
     using (var vapidScope = app.Services.CreateScope())
     {
-        var db = vapidScope.ServiceProvider.GetRequiredService<UbiquitiStoreLurkerDbContext>();
+        var db = vapidScope.ServiceProvider.GetRequiredService<UniFiStoreWatchDbContext>();
         var settings = await db.AppSettings.FindAsync(1);
         if (settings != null && string.IsNullOrEmpty(settings.VapidPublicKey))
         {
@@ -243,7 +274,7 @@ try
     app.MapNotificationEndpoints();
     app.MapPushEndpoints();
 
-    app.MapHub<UbiquitiStoreLurkerHub>("/ubiquitistorelurker-hub");
+    app.MapHub<UniFiStoreWatchHub>("/UniFiStoreWatch-hub");
 
     // Health endpoints
     // /api/health/live — liveness: always 200 if the process is running (no checks executed)
@@ -267,10 +298,8 @@ try
 
     app.MapMetrics("/api/metrics");
 
-    // SPA fallback — serves Vue 3 SPA for all non-API routes
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
-    app.MapFallbackToFile("index.html");
+    // SPA fallback — serves Claude dashboard for any unmatched non-file routes
+    app.MapFallbackToFile("claude/index.html");
 
     app.Run();
 }

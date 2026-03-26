@@ -74,13 +74,6 @@ BenchmarkDotNet.Artifacts/
 .env.*
 !.env.example
 
-## Aspire publish output
-aspire-output/
-.aspire/
-
-## Docker
-.dockerignore
-
 ## JetBrains Rider
 *.sln.iml
 _ReSharper*/

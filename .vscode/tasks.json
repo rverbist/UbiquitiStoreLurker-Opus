@@ -1,110 +1,57 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        // ── BUILD ─────────────────────────────────────────────────────────────────────
-        {
-            "label": "Restore",
-            "type": "shell",
-            "command": "dotnet restore UbiquitiStoreLurker.slnx",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build",
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Build",
-            "type": "shell",
-            "command": "dotnet build UbiquitiStoreLurker.slnx",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Rebuild",
-            "type": "shell",
-            "command": "dotnet build UbiquitiStoreLurker.slnx --no-incremental",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build",
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Clean",
-            "type": "shell",
-            "command": "dotnet clean UbiquitiStoreLurker.slnx",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build",
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            }
-        },
-        // ── RUN ───────────────────────────────────────────────────────────────────────
-        {
-            "label": "Run (Aspire)",
-            "type": "shell",
-            "command": "dotnet run --project UbiquitiStoreLurker.AppHost/UbiquitiStoreLurker.AppHost.csproj",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "test",
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "dedicated"
-            }
-        },
-        // ── DEPLOY ────────────────────────────────────────────────────────────────────
-        {
-            // Builds the Docker image from src/, syncs docker-compose.yml + otel-collector.yaml to
-            // /opt/docker/apps/ubiquitistorelurker/, restarts the production stack, waits for /api/health/ready,
-            // then prints the live URLs.
-            "label": "Deploy Docker",
-            "type": "shell",
-            "command": "./deploy-docker.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "dedicated",
-                "close": false
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "presentation": {
+    "echo": true,
+    "reveal": "always",
+    "focus": true,
+    "panel": "shared",
+    "showReuseMessage": false,
+    "clear": false
+  },
+  "tasks": [
+    // ── BUILD ─────────────────────────────────────────────────────────────────────
+    {
+      "label": "Restore",
+      "type": "shell",
+      "command": "dotnet restore UniFiStoreWatch.slnx",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "dotnet build UniFiStoreWatch.slnx",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Rebuild",
+      "type": "shell",
+      "command": "dotnet build UniFiStoreWatch.slnx --no-incremental",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Clean",
+      "type": "shell",
+      "command": "dotnet clean UniFiStoreWatch.slnx",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    }
+  ]
 }
