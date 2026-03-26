@@ -1,0 +1,3008 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ubiquiti Command Center</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ================================================================
+   DESIGN TOKENS
+   ================================================================ */
+      :root {
+        --bg: #f4f5f7;
+        --bg-warm: #fafaf9;
+        --surface: #ffffff;
+        --surface-hover: #f0f1f3;
+        --surface-active: #e8eaed;
+        --border: #e2e5ea;
+        --border-light: #eef0f3;
+
+        --accent: #006fff;
+        --accent-hover: #0058cc;
+        --accent-light: rgba(0, 111, 255, 0.06);
+        --accent-glow: rgba(0, 111, 255, 0.2);
+
+        --text: #1a1d23;
+        --text-secondary: #5c6370;
+        --text-muted: #9ca3af;
+
+        --success: #059669;
+        --success-bg: rgba(5, 150, 105, 0.08);
+        --success-border: rgba(5, 150, 105, 0.25);
+        --danger: #dc2626;
+        --danger-bg: rgba(220, 38, 38, 0.08);
+        --danger-border: rgba(220, 38, 38, 0.25);
+        --warning: #d97706;
+        --warning-bg: rgba(217, 119, 6, 0.08);
+        --warning-border: rgba(217, 119, 6, 0.25);
+        --muted-bg: rgba(156, 163, 174, 0.08);
+
+        --font-ui:
+          "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        --font-mono:
+          "JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+
+        --radius: 10px;
+        --radius-sm: 6px;
+        --radius-lg: 14px;
+        --radius-xl: 20px;
+
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-sm:
+          0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md:
+          0 4px 8px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+        --shadow-lg:
+          0 10px 25px -5px rgba(0, 0, 0, 0.08),
+          0 4px 6px -4px rgba(0, 0, 0, 0.04);
+        --shadow-xl: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
+
+        --transition: 0.2s ease;
+        --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* ================================================================
+   RESET & BASE
+   ================================================================ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        font-family: var(--font-ui);
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        color: var(--accent-hover);
+      }
+
+      button {
+        cursor: pointer;
+        border: none;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: var(--radius-sm);
+        padding: 8px 16px;
+        transition: all var(--transition);
+      }
+
+      input,
+      select,
+      textarea {
+        font-family: inherit;
+        font-size: 13px;
+        color: var(--text);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 9px 14px;
+        outline: none;
+        width: 100%;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-light);
+      }
+
+      /* ================================================================
+   BUTTONS
+   ================================================================ */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn--primary {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: var(--shadow-xs);
+      }
+      .btn--primary:hover {
+        background: var(--accent-hover);
+      }
+      .btn--ghost {
+        background: transparent;
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+      }
+      .btn--ghost:hover {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+      .btn--danger {
+        background: var(--danger-bg);
+        color: var(--danger);
+        border: 1px solid var(--danger-border);
+      }
+      .btn--danger:hover {
+        background: var(--danger);
+        color: #fff;
+      }
+      .btn--sm {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+
+      /* ================================================================
+   LAYOUT
+   ================================================================ */
+      .page {
+        display: none;
+        padding: 80px 28px 40px;
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+      .page--active {
+        display: block;
+      }
+
+      /* ================================================================
+   NAVBAR
+   ================================================================ */
+      .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 28px;
+        z-index: 100;
+        gap: 24px;
+        box-shadow: var(--shadow-xs);
+      }
+
+      .navbar__brand {
+        font-weight: 800;
+        font-size: 12px;
+        letter-spacing: 2px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        user-select: none;
+        flex-shrink: 0;
+      }
+
+      .navbar__brand-dot {
+        width: 10px;
+        height: 10px;
+        background: var(--accent);
+        border-radius: 3px;
+        transform: rotate(45deg);
+        cursor: default;
+        transition:
+          transform 0.3s,
+          background 0.3s;
+      }
+      .navbar__brand-dot:hover {
+        transform: rotate(225deg);
+        background: var(--success);
+      }
+
+      .navbar__links {
+        display: flex;
+        gap: 2px;
+      }
+
+      .nav-link {
+        padding: 7px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition);
+        text-decoration: none;
+        user-select: none;
+      }
+      .nav-link:hover {
+        color: var(--text);
+        background: var(--surface-hover);
+      }
+      .nav-link--active {
+        color: var(--accent);
+        background: var(--accent-light);
+      }
+
+      .navbar__status {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        letter-spacing: 0.3px;
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        flex-shrink: 0;
+        transition: all 0.3s;
+      }
+      .status-dot--connected {
+        background: var(--success);
+        box-shadow: 0 0 8px rgba(5, 150, 105, 0.5);
+      }
+      .status-dot--reconnecting {
+        background: var(--warning);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      .status-dot--error {
+        background: var(--danger);
+      }
+
+      /* ================================================================
+   TOOLBAR (Monitor page header)
+   ================================================================ */
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .toolbar__title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: var(--text);
+      }
+
+      .toolbar__subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-top: 2px;
+      }
+
+      .add-form {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .add-form input {
+        width: 340px;
+        padding: 9px 16px;
+        border-radius: var(--radius-xl);
+        font-size: 13px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+      }
+      .add-form input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-light);
+      }
+      .add-form .btn {
+        border-radius: var(--radius-xl);
+        padding: 9px 20px;
+        white-space: nowrap;
+      }
+
+      /* ================================================================
+   MONITOR CONTENT LAYOUT
+   ================================================================ */
+      .monitor-content {
+        display: flex;
+        gap: 24px;
+        min-height: 300px;
+        position: relative;
+      }
+
+      /* ================================================================
+   PRODUCT GRID
+   ================================================================ */
+      .grid {
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+        gap: 16px;
+        align-content: start;
+      }
+
+      .grid__empty {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 80px 24px;
+        color: var(--text-muted);
+      }
+      .grid__empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+      .grid__loading {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 80px 24px;
+        color: var(--text-muted);
+      }
+
+      /* ================================================================
+   PRODUCT CARD
+   ================================================================ */
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--border);
+        overflow: hidden;
+        cursor: pointer;
+        transition: all var(--transition);
+        box-shadow: var(--shadow-xs);
+        position: relative;
+        animation: cardEnter 0.35s ease-out both;
+      }
+      .card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        border-color: var(--border);
+      }
+
+      .card--in-stock {
+        border-left-color: var(--success);
+      }
+      .card--out-of-stock {
+        border-left-color: var(--danger);
+      }
+      .card--indeterminate {
+        border-left-color: var(--warning);
+      }
+      .card--unknown {
+        border-left-color: var(--text-muted);
+      }
+
+      .card--selected {
+        border-color: var(--accent) !important;
+        border-left-color: var(--accent) !important;
+        box-shadow:
+          var(--shadow-lg),
+          0 0 0 2px var(--accent-glow);
+        transform: translateY(-2px);
+      }
+
+      .card--inactive {
+        opacity: 0.45;
+        filter: grayscale(0.5);
+      }
+      .card--inactive:hover {
+        opacity: 0.65;
+      }
+
+      .card--polling .card__polling-ring {
+        display: block;
+      }
+
+      .card__image {
+        width: 100%;
+        height: 160px;
+        background: var(--bg-warm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+      .card__image img {
+        max-width: 85%;
+        max-height: 85%;
+        object-fit: contain;
+        transition: transform 0.3s;
+      }
+      .card:hover .card__image img {
+        transform: scale(1.05);
+      }
+
+      .card__placeholder {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .card__bell {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 22px;
+        height: 22px;
+        background: var(--accent);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-sm);
+      }
+      .card__bell svg {
+        width: 12px;
+        height: 12px;
+        fill: #fff;
+      }
+
+      .card__polling-ring {
+        display: none;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--accent);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .card__body {
+        padding: 14px 16px 16px;
+      }
+      .card__name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 2px;
+        line-height: 1.3;
+      }
+      .card__code {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-muted);
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        display: block;
+        margin-bottom: 10px;
+      }
+      .card__footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .card__time {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      /* State badges */
+      .state-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+      }
+      .state-badge__dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .state-badge--in-stock {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+      .state-badge--in-stock .state-badge__dot {
+        background: var(--success);
+      }
+      .state-badge--out-of-stock {
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+      .state-badge--out-of-stock .state-badge__dot {
+        background: var(--danger);
+      }
+      .state-badge--indeterminate {
+        background: var(--warning-bg);
+        color: var(--warning);
+      }
+      .state-badge--indeterminate .state-badge__dot {
+        background: var(--warning);
+      }
+      .state-badge--unknown {
+        background: var(--muted-bg);
+        color: var(--text-muted);
+      }
+      .state-badge--unknown .state-badge__dot {
+        background: var(--text-muted);
+      }
+
+      /* ================================================================
+   DETAIL PANEL
+   ================================================================ */
+      .detail-panel {
+        width: 400px;
+        flex-shrink: 0;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        display: none;
+        flex-direction: column;
+        max-height: calc(100vh - 120px);
+        position: sticky;
+        top: 80px;
+        animation: slideInRight 0.3s ease-out;
+      }
+      .detail-panel--open {
+        display: flex;
+      }
+
+      .detail-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+        flex-shrink: 0;
+      }
+      .detail-panel__title {
+        font-size: 15px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        margin-right: 12px;
+      }
+      .detail-panel__close {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 16px;
+        padding: 0;
+        flex-shrink: 0;
+      }
+      .detail-panel__close:hover {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+
+      .detail-panel__body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      .detail-panel__image {
+        width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+        border-radius: var(--radius);
+        background: var(--bg-warm);
+        margin-bottom: 16px;
+      }
+
+      .detail-panel__meta {
+        margin-bottom: 20px;
+      }
+      .detail-panel__name {
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 4px;
+        letter-spacing: -0.3px;
+      }
+      .detail-panel__code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      .detail-panel__desc {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 12px;
+      }
+      .detail-panel__link {
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Telemetry cards */
+      .telemetry-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 16px 0;
+      }
+      .telemetry-card {
+        background: var(--bg);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        border: 1px solid var(--border-light);
+      }
+      .telemetry-card__label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .telemetry-card__value {
+        font-family: var(--font-mono);
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .telemetry-card__value--danger {
+        color: var(--danger);
+      }
+      .telemetry-card__value--sm {
+        font-size: 13px;
+      }
+
+      /* Stock state section */
+      .detail-panel__state {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-top: 1px solid var(--border-light);
+        margin-top: 4px;
+      }
+      .detail-panel__state-info {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* Actions */
+      .detail-panel__actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 14px 0;
+        border-top: 1px solid var(--border-light);
+        margin-top: 4px;
+      }
+      .detail-panel__actions select {
+        width: auto;
+        padding: 5px 10px;
+        font-size: 12px;
+        border-radius: var(--radius-sm);
+      }
+
+      /* History table in detail panel */
+      .detail-panel__section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        margin: 16px 0 10px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-light);
+      }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+      }
+      .history-table th {
+        text-align: left;
+        padding: 6px 8px;
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .history-table td {
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border-light);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+      .history-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* ================================================================
+   LIVE FEED
+   ================================================================ */
+      .feed-section {
+        margin-top: 32px;
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+      }
+
+      .feed-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        background: #1a1d23;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .feed-header__title {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .feed-header__count {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .feed-table-wrap {
+        overflow-x: auto;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .feed-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .feed-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .feed-table th {
+        text-align: left;
+        padding: 10px 14px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+      }
+      .feed-table td {
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+      .feed-table tbody tr:nth-child(even) {
+        background: rgba(0, 0, 0, 0.015);
+      }
+      .feed-table tbody tr:hover {
+        background: var(--accent-light);
+      }
+
+      .feed-table .feed-row--new {
+        animation: slideInRow 0.5s ease-out;
+      }
+
+      .feed-table .feed-row--removing {
+        animation: tumbleOff 0.6s ease-in forwards;
+      }
+
+      .feed-empty {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-style: italic;
+      }
+      .feed-empty--hidden {
+        display: none;
+      }
+
+      /* Feed cell styling */
+      .feed-status {
+        font-weight: 700;
+      }
+      .feed-status--ok {
+        color: var(--success);
+      }
+      .feed-status--error {
+        color: var(--danger);
+      }
+      .feed-status--warn {
+        color: var(--warning);
+      }
+
+      .feed-event-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      .feed-event-type--poll {
+        background: var(--accent-light);
+        color: var(--accent);
+      }
+      .feed-event-type--error {
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+      .feed-event-type--state {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+      .feed-event-type--started {
+        background: var(--muted-bg);
+        color: var(--text-muted);
+      }
+
+      /* ================================================================
+   SETTINGS PAGE
+   ================================================================ */
+      .settings-container {
+        max-width: 820px;
+      }
+
+      .settings__title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin-bottom: 24px;
+      }
+
+      .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .settings-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        box-shadow: var(--shadow-xs);
+      }
+      .settings-card--full {
+        grid-column: 1 / -1;
+      }
+
+      .settings-card__title {
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-light);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+      }
+      .form-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .settings-save {
+        margin-top: 16px;
+      }
+
+      /* Notification provider cards */
+      .provider-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .provider-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius);
+        transition: all var(--transition);
+      }
+      .provider-card:hover {
+        background: var(--bg);
+      }
+      .provider-card__info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .provider-card__icon {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        background: var(--accent-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .provider-card__name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .provider-card__type {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      /* Toggle switch */
+      .toggle {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        background: var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+        border: none;
+        padding: 0;
+        flex-shrink: 0;
+      }
+      .toggle--active {
+        background: var(--accent);
+      }
+      .toggle::after {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        background: #fff;
+        border-radius: 50%;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.2s;
+        box-shadow: var(--shadow-sm);
+      }
+      .toggle--active::after {
+        transform: translateX(18px);
+      }
+
+      /* ================================================================
+   STOCK POPUP
+   ================================================================ */
+      .popup {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+      }
+      .popup--entering {
+        animation: pp98Flash 0.8s ease-out;
+      }
+
+      .popup__modal {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #fff;
+        border-radius: 24px;
+        padding: 48px 44px 40px;
+        max-width: 480px;
+        width: 90vw;
+        text-decoration: none;
+        color: var(--text);
+        position: relative;
+        cursor: pointer;
+        text-align: center;
+        box-shadow: var(--shadow-xl);
+      }
+      .popup--entering .popup__modal {
+        animation:
+          pp98Entrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+          pp98Glow 2s ease-in-out 1.2s infinite,
+          pp98Shake 0.4s ease-in-out 1.2s;
+      }
+
+      .popup__dismiss {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--surface-hover);
+        color: var(--text-muted);
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        padding: 0;
+        transition: all var(--transition);
+      }
+      .popup__dismiss:hover {
+        background: var(--surface-active);
+        color: var(--text);
+      }
+
+      .popup__image {
+        max-width: 200px;
+        max-height: 180px;
+        object-fit: contain;
+        margin-bottom: 20px;
+        border-radius: var(--radius);
+      }
+
+      .popup__badge {
+        font-size: 52px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        background: linear-gradient(135deg, var(--success), #10b981, #34d399);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: none;
+        margin-bottom: 8px;
+        line-height: 1.1;
+      }
+      .popup--entering .popup__badge {
+        animation: pp98TitleBounce 0.6s ease-out 0.4s both;
+      }
+
+      .popup__product {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+        max-width: 100%;
+        overflow-wrap: break-word;
+      }
+
+      .popup__cta {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--accent);
+        letter-spacing: 1px;
+        animation: pp98Pulse 1.5s ease-in-out infinite;
+        padding: 10px 32px;
+        border: 2px solid var(--accent);
+        border-radius: var(--radius-xl);
+      }
+
+      /* ================================================================
+   CONFETTI CANVAS
+   ================================================================ */
+      #confetti-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        pointer-events: none;
+        display: none;
+      }
+
+      /* ================================================================
+   TOAST NOTIFICATIONS
+   ================================================================ */
+      .toast-container {
+        position: fixed;
+        top: 68px;
+        right: 24px;
+        z-index: 500;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .toast {
+        padding: 12px 20px;
+        border-radius: var(--radius);
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: var(--shadow-md);
+        animation: toastIn 0.3s ease-out;
+        max-width: 360px;
+      }
+      .toast--success {
+        background: var(--success);
+        color: #fff;
+      }
+      .toast--error {
+        background: var(--danger);
+        color: #fff;
+      }
+      .toast--info {
+        background: var(--text);
+        color: #fff;
+      }
+      .toast--removing {
+        animation: toastOut 0.25s ease-in forwards;
+      }
+
+      /* ================================================================
+   KEYFRAME ANIMATIONS
+   ================================================================ */
+      @keyframes cardEnter {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideInRight {
+        from {
+          transform: translateX(30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideInRow {
+        0% {
+          transform: translateY(-100%);
+          opacity: 0;
+          background: var(--accent-light);
+        }
+        50% {
+          background: var(--accent-light);
+        }
+        100% {
+          transform: translateY(0);
+          opacity: 1;
+          background: transparent;
+        }
+      }
+
+      @keyframes tumbleOff {
+        0% {
+          transform: translateY(0) rotate(0deg) scale(1);
+          opacity: 1;
+        }
+        25% {
+          transform: translateY(8px) rotate(4deg);
+          opacity: 0.7;
+        }
+        100% {
+          transform: translateY(180px) rotate(18deg) scale(0.7);
+          opacity: 0;
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* PowerPoint 98 popup animations */
+      @keyframes pp98Entrance {
+        0% {
+          transform: scale(0.01) rotate(-720deg);
+          opacity: 0;
+        }
+        25% {
+          opacity: 1;
+        }
+        35% {
+          transform: scale(1.35) rotate(12deg);
+        }
+        50% {
+          transform: scale(0.88) rotate(-7deg);
+        }
+        65% {
+          transform: scale(1.12) rotate(4deg);
+        }
+        80% {
+          transform: scale(0.96) rotate(-1.5deg);
+        }
+        90% {
+          transform: scale(1.03) rotate(0.5deg);
+        }
+        100% {
+          transform: scale(1) rotate(0deg);
+        }
+      }
+
+      @keyframes pp98Flash {
+        0% {
+          background: rgba(0, 0, 0, 0.6);
+        }
+        10% {
+          background: rgba(0, 111, 255, 0.3);
+        }
+        20% {
+          background: rgba(0, 0, 0, 0.6);
+        }
+        30% {
+          background: rgba(5, 150, 105, 0.3);
+        }
+        40% {
+          background: rgba(0, 0, 0, 0.6);
+        }
+        50% {
+          background: rgba(255, 215, 0, 0.25);
+        }
+        60% {
+          background: rgba(0, 0, 0, 0.6);
+        }
+        70% {
+          background: rgba(0, 111, 255, 0.2);
+        }
+        100% {
+          background: rgba(0, 0, 0, 0.6);
+        }
+      }
+
+      @keyframes pp98Glow {
+        0% {
+          box-shadow:
+            0 0 30px rgba(0, 111, 255, 0.4),
+            0 0 60px rgba(0, 111, 255, 0.1),
+            var(--shadow-xl);
+        }
+        25% {
+          box-shadow:
+            0 0 30px rgba(5, 150, 105, 0.4),
+            0 0 60px rgba(5, 150, 105, 0.1),
+            var(--shadow-xl);
+        }
+        50% {
+          box-shadow:
+            0 0 30px rgba(255, 215, 0, 0.4),
+            0 0 60px rgba(255, 215, 0, 0.1),
+            var(--shadow-xl);
+        }
+        75% {
+          box-shadow:
+            0 0 30px rgba(220, 38, 38, 0.3),
+            0 0 60px rgba(220, 38, 38, 0.1),
+            var(--shadow-xl);
+        }
+        100% {
+          box-shadow:
+            0 0 30px rgba(0, 111, 255, 0.4),
+            0 0 60px rgba(0, 111, 255, 0.1),
+            var(--shadow-xl);
+        }
+      }
+
+      @keyframes pp98Shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        15% {
+          transform: translateX(-8px) rotate(-2deg);
+        }
+        30% {
+          transform: translateX(6px) rotate(1.5deg);
+        }
+        45% {
+          transform: translateX(-4px) rotate(-1deg);
+        }
+        60% {
+          transform: translateX(3px) rotate(0.5deg);
+        }
+        75% {
+          transform: translateX(-1px);
+        }
+      }
+
+      @keyframes pp98TitleBounce {
+        0% {
+          transform: scale(0.3);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2);
+        }
+        70% {
+          transform: scale(0.9);
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      @keyframes pp98Pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.7;
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes toastIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes toastOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+
+      /* ================================================================
+   RESPONSIVE
+   ================================================================ */
+      @media (max-width: 1024px) {
+        .monitor-content {
+          flex-direction: column;
+        }
+        .detail-panel {
+          width: 100%;
+          position: relative;
+          top: 0;
+          max-height: none;
+        }
+        .settings-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          padding: 70px 16px 32px;
+        }
+        .navbar {
+          padding: 0 16px;
+          gap: 12px;
+        }
+        .toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .add-form {
+          flex-direction: column;
+        }
+        .add-form input {
+          width: 100%;
+        }
+        .grid {
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 12px;
+        }
+        .card__image {
+          height: 120px;
+        }
+        .telemetry-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============================================================
+       NAVIGATION
+       ============================================================ -->
+    <nav class="navbar">
+      <div
+        class="navbar__brand"
+        onclick="window.__app.testPopup()"
+        style="cursor: pointer"
+        title="Test notification"
+      >
+        <div class="navbar__brand-dot"></div>
+        STOCK MONITOR
+      </div>
+      <div class="navbar__links">
+        <a
+          class="nav-link nav-link--active"
+          data-page="monitor"
+          onclick="window.__app.navigate('monitor')"
+          >Monitor</a
+        >
+        <a
+          class="nav-link"
+          data-page="settings"
+          onclick="window.__app.navigate('settings')"
+          >Settings</a
+        >
+      </div>
+      <div class="navbar__status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Connecting&hellip;</span>
+      </div>
+    </nav>
+
+    <!-- ============================================================
+       MONITOR PAGE
+       ============================================================ -->
+    <main id="page-monitor" class="page page--active">
+      <div class="toolbar">
+        <div>
+          <h1 class="toolbar__title">Products</h1>
+          <p class="toolbar__subtitle" id="product-count">Loading&hellip;</p>
+        </div>
+        <form
+          id="add-product-form"
+          class="add-form"
+          onsubmit="return window.__app.addProduct(event);"
+        >
+          <input
+            type="url"
+            id="add-url-input"
+            placeholder="Paste Ubiquiti store URL&hellip;"
+            required
+          />
+          <button type="submit" class="btn btn--primary">+ Add</button>
+        </form>
+      </div>
+
+      <div class="monitor-content">
+        <section id="product-grid" class="grid">
+          <div class="grid__loading">Loading products&hellip;</div>
+        </section>
+        <aside id="detail-panel" class="detail-panel"></aside>
+      </div>
+
+      <section class="feed-section">
+        <div class="feed-header">
+          <span class="feed-header__title">LIVE FEED</span>
+          <span class="feed-header__count" id="feed-count">0 events</span>
+        </div>
+        <div class="feed-table-wrap">
+          <table class="feed-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Product</th>
+                <th>Event</th>
+                <th>Status</th>
+                <th>State</th>
+                <th>Duration</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="feed-body"></tbody>
+          </table>
+          <div id="feed-empty" class="feed-empty">
+            Waiting for polling events&hellip;
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============================================================
+       SETTINGS PAGE
+       ============================================================ -->
+    <main id="page-settings" class="page">
+      <div class="settings-container" id="settings-container">
+        <h1 class="settings__title">Settings</h1>
+        <div class="settings-grid" id="settings-grid">
+          <div class="grid__loading" style="grid-column: 1/-1">
+            Loading settings&hellip;
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============================================================
+       CONFETTI CANVAS (z-index 9998)
+       ============================================================ -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- ============================================================
+       STOCK POPUP (z-index 9999)
+       ============================================================ -->
+    <div id="stock-popup" class="popup" style="display: none">
+      <a
+        id="popup-link"
+        class="popup__modal"
+        href="#"
+        target="_blank"
+        rel="noopener"
+      >
+        <button
+          type="button"
+          class="popup__dismiss"
+          onclick="
+            event.preventDefault();
+            event.stopPropagation();
+            window.__app.dismissPopup();
+          "
+        >
+          &times;
+        </button>
+        <img id="popup-image" class="popup__image" src="" alt="" />
+        <div class="popup__badge">IN STOCK!</div>
+        <div id="popup-product" class="popup__product"></div>
+        <div class="popup__cta">CLICK TO BUY NOW!</div>
+      </a>
+    </div>
+
+    <!-- ============================================================
+       TOAST CONTAINER
+       ============================================================ -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ============================================================
+       SIGNALR CLIENT
+       ============================================================ -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"
+      integrity="sha512-7SRCYIJtR6F3j5KJPl25hLCKMPkP9eXsFyPgNSthRVgGrn0JRBxVtiR/cqZkMcR+a2cCHKKjPMk0fBgUy1GHQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <!-- ============================================================
+       APPLICATION JAVASCRIPT
+       ============================================================ -->
+    <script>
+      (function () {
+        "use strict";
+
+        /* =============================================================
+     CONSTANTS
+     ============================================================= */
+        var StockState = {
+          Unknown: 0,
+          InStock: 1,
+          OutOfStock: 2,
+          Indeterminate: 3,
+        };
+        var SubscriptionType = { None: 0, InStock: 1, OutOfStock: 2, Both: 3 };
+        var STATE_LABELS = {
+          0: "Unknown",
+          1: "In Stock",
+          2: "Out of Stock",
+          3: "Indeterminate",
+        };
+        var STATE_CLASSES = {
+          0: "unknown",
+          1: "in-stock",
+          2: "out-of-stock",
+          3: "indeterminate",
+        };
+        var SUB_LABELS = {
+          0: "None",
+          1: "In Stock",
+          2: "Out of Stock",
+          3: "Both",
+        };
+        var MAX_FEED = 50;
+        var PROVIDER_ICONS = {
+          BrowserPush: "\uD83D\uDD14",
+          Email: "\u2709\uFE0F",
+          Sms: "\uD83D\uDCF1",
+          Teams: "\uD83D\uDCAC",
+          Discord: "\uD83C\uDFAE",
+        };
+
+        /* =============================================================
+     STATE
+     ============================================================= */
+        var state = {
+          products: [],
+          selectedId: null,
+          selectedHistory: [],
+          feedEvents: [],
+          settings: null,
+          notifConfigs: [],
+          pollingIds: new Set(),
+          currentPage: "monitor",
+          hubConnected: false,
+          loadingProducts: true,
+          loadingDetail: false,
+          loadingSettings: false,
+          countdownTimer: null,
+        };
+
+        /* =============================================================
+     HELPERS
+     ============================================================= */
+        function esc(str) {
+          if (!str) return "";
+          var d = document.createElement("div");
+          d.textContent = str;
+          return d.innerHTML;
+        }
+
+        function hostname(url) {
+          try {
+            return new URL(url).hostname;
+          } catch (e) {
+            return url;
+          }
+        }
+
+        function relTime(iso) {
+          if (!iso) return "Never";
+          var diff = (Date.now() - new Date(iso).getTime()) / 1000;
+          if (diff < 0) return "just now";
+          if (diff < 60) return Math.floor(diff) + "s ago";
+          if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+          if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+          return Math.floor(diff / 86400) + "d ago";
+        }
+
+        function countdown(iso) {
+          if (!iso) return "--";
+          var diff = (new Date(iso).getTime() - Date.now()) / 1000;
+          if (diff <= 0) return "now";
+          if (diff < 60) return Math.floor(diff) + "s";
+          return Math.floor(diff / 60) + "m " + Math.floor(diff % 60) + "s";
+        }
+
+        function daysSince(iso) {
+          if (!iso) return null;
+          var diff = (Date.now() - new Date(iso).getTime()) / 86400000;
+          return Math.floor(diff);
+        }
+
+        function timeStr(iso) {
+          if (!iso) return "--";
+          return new Date(iso).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        }
+
+        function htmlToEl(html) {
+          var tpl = document.createElement("template");
+          tpl.innerHTML = html.trim();
+          return tpl.content.firstChild;
+        }
+
+        /* =============================================================
+     API CLIENT
+     ============================================================= */
+        var api = {
+          request: function (path, init) {
+            var opts = Object.assign(
+              { headers: { "Content-Type": "application/json" } },
+              init || {},
+            );
+            return fetch("/api" + path, opts).then(function (res) {
+              if (!res.ok)
+                return res.text().then(function (t) {
+                  throw new Error("HTTP " + res.status + ": " + t);
+                });
+              if (res.status === 204 || res.status === 201) return undefined;
+              return res.json();
+            });
+          },
+          products: {
+            list: function () {
+              return api.request("/products");
+            },
+            get: function (id) {
+              return api.request("/products/" + id);
+            },
+            create: function (url, sub) {
+              return api.request("/products", {
+                method: "POST",
+                body: JSON.stringify({ url: url, subscribedEvents: sub || 1 }),
+              });
+            },
+            update: function (id, patch) {
+              return api.request("/products/" + id, {
+                method: "PUT",
+                body: JSON.stringify(patch),
+              });
+            },
+            remove: function (id) {
+              return api.request("/products/" + id, { method: "DELETE" });
+            },
+            history: function (id, page, size) {
+              return api.request(
+                "/products/" +
+                  id +
+                  "/history?page=" +
+                  (page || 1) +
+                  "&pageSize=" +
+                  (size || 20),
+              );
+            },
+          },
+          settings: {
+            get: function () {
+              return api.request("/settings");
+            },
+            update: function (patch) {
+              return api.request("/settings", {
+                method: "PUT",
+                body: JSON.stringify(patch),
+              });
+            },
+          },
+          notifications: {
+            getConfigs: function () {
+              return api.request("/notifications/configs");
+            },
+            updateConfig: function (id, patch) {
+              return api.request("/notifications/configs/" + id, {
+                method: "PUT",
+                body: JSON.stringify(patch),
+              });
+            },
+          },
+        };
+
+        /* =============================================================
+     TOAST NOTIFICATIONS
+     ============================================================= */
+        function toast(msg, type) {
+          var container = document.getElementById("toast-container");
+          var el = document.createElement("div");
+          el.className = "toast toast--" + (type || "info");
+          el.textContent = msg;
+          container.appendChild(el);
+          setTimeout(function () {
+            el.classList.add("toast--removing");
+            el.addEventListener("animationend", function () {
+              el.remove();
+            });
+          }, 3000);
+        }
+
+        /* =============================================================
+     RENDERING: PRODUCT GRID
+     ============================================================= */
+        function renderGrid() {
+          var grid = document.getElementById("product-grid");
+          var sub = document.getElementById("product-count");
+
+          if (state.loadingProducts) {
+            grid.innerHTML =
+              '<div class="grid__loading">Loading products\u2026</div>';
+            sub.textContent = "Loading\u2026";
+            return;
+          }
+
+          if (state.products.length === 0) {
+            grid.innerHTML =
+              '<div class="grid__empty">' +
+              '<div class="grid__empty-title">No products being monitored</div>' +
+              "<div>Paste a Ubiquiti Store URL above to get started.</div>" +
+              "</div>";
+            sub.textContent = "0 products monitored";
+            return;
+          }
+
+          sub.textContent =
+            state.products.length +
+            " product" +
+            (state.products.length !== 1 ? "s" : "") +
+            " monitored";
+
+          var html = "";
+          for (var i = 0; i < state.products.length; i++) {
+            html += cardHTML(state.products[i], i);
+          }
+          grid.innerHTML = html;
+        }
+
+        function cardHTML(p, idx) {
+          var sc = STATE_CLASSES[p.currentState] || "unknown";
+          var sl = STATE_LABELS[p.currentState] || "Unknown";
+          var isPolling = state.pollingIds.has(p.id);
+          var isSelected = p.id === state.selectedId;
+          var hasSub = p.subscribedEvents > 0;
+
+          var classes = "card card--" + sc;
+          if (isSelected) classes += " card--selected";
+          if (!p.isActive) classes += " card--inactive";
+          if (isPolling) classes += " card--polling";
+
+          var delay =
+            idx !== undefined
+              ? ' style="animation-delay:' + idx * 0.04 + 's"'
+              : "";
+
+          return (
+            '<article class="' +
+            classes +
+            '" data-product-id="' +
+            p.id +
+            '"' +
+            delay +
+            ">" +
+            '<div class="card__image">' +
+            (p.imageUrl
+              ? '<img src="' +
+                esc(p.imageUrl) +
+                '" alt="' +
+                esc(p.name || "") +
+                '" loading="lazy">'
+              : '<div class="card__placeholder">No Image</div>') +
+            (hasSub
+              ? '<div class="card__bell"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4a2 2 0 002 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5S10.5 3.17 10.5 4v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div>'
+              : "") +
+            (isPolling ? '<div class="card__polling-ring"></div>' : "") +
+            "</div>" +
+            '<div class="card__body">' +
+            '<div class="card__name">' +
+            esc(p.name || hostname(p.url)) +
+            "</div>" +
+            (p.productCode
+              ? '<span class="card__code">' + esc(p.productCode) + "</span>"
+              : '<span class="card__code">' +
+                esc(hostname(p.url)) +
+                "</span>") +
+            '<div class="card__footer">' +
+            '<span class="state-badge state-badge--' +
+            sc +
+            '">' +
+            '<span class="state-badge__dot"></span>' +
+            sl +
+            "</span>" +
+            '<span class="card__time">' +
+            relTime(p.lastPollAtUtc) +
+            "</span>" +
+            "</div>" +
+            "</div>" +
+            "</article>"
+          );
+        }
+
+        function updateCard(productId) {
+          var p = state.products.find(function (x) {
+            return x.id === productId;
+          });
+          if (!p) return;
+          var el = document.querySelector(
+            '[data-product-id="' + productId + '"]',
+          );
+          if (!el) return;
+          var newEl = htmlToEl(cardHTML(p));
+          el.replaceWith(newEl);
+        }
+
+        /* =============================================================
+     RENDERING: DETAIL PANEL
+     ============================================================= */
+        function renderDetailPanel() {
+          var panel = document.getElementById("detail-panel");
+          var p = state.products.find(function (x) {
+            return x.id === state.selectedId;
+          });
+
+          if (!p) {
+            panel.classList.remove("detail-panel--open");
+            if (state.countdownTimer) {
+              clearInterval(state.countdownTimer);
+              state.countdownTimer = null;
+            }
+            return;
+          }
+
+          panel.classList.add("detail-panel--open");
+
+          var d = daysSince(p.lastStateChangeAtUtc);
+          var daysText =
+            d !== null
+              ? d === 0
+                ? "Today"
+                : d + " day" + (d !== 1 ? "s" : "") + " ago"
+              : "N/A";
+
+          panel.innerHTML =
+            '<div class="detail-panel__header">' +
+            '<div class="detail-panel__title">' +
+            esc(p.name || hostname(p.url)) +
+            "</div>" +
+            '<button class="detail-panel__close" onclick="window.__app.closePanel()">&times;</button>' +
+            "</div>" +
+            '<div class="detail-panel__body">' +
+            (p.imageUrl
+              ? '<img class="detail-panel__image" src="' +
+                esc(p.imageUrl) +
+                '" alt="' +
+                esc(p.name || "") +
+                '">'
+              : "") +
+            '<div class="detail-panel__meta">' +
+            '<div class="detail-panel__name">' +
+            esc(p.name || hostname(p.url)) +
+            "</div>" +
+            (p.productCode
+              ? '<div class="detail-panel__code">' +
+                esc(p.productCode) +
+                "</div>"
+              : "") +
+            (p.description
+              ? '<div class="detail-panel__desc">' +
+                esc(p.description) +
+                "</div>"
+              : "") +
+            '<a class="detail-panel__link" href="' +
+            esc(p.url) +
+            '" target="_blank" rel="noopener">Open in store \u2197</a>' +
+            "</div>" +
+            '<div class="telemetry-grid">' +
+            '<div class="telemetry-card">' +
+            '<div class="telemetry-card__label">Total Polls</div>' +
+            '<div class="telemetry-card__value">' +
+            p.pollCount +
+            "</div>" +
+            "</div>" +
+            '<div class="telemetry-card">' +
+            '<div class="telemetry-card__label">Errors</div>' +
+            '<div class="telemetry-card__value' +
+            (p.errorCount > 0 ? " telemetry-card__value--danger" : "") +
+            '">' +
+            p.errorCount +
+            "</div>" +
+            "</div>" +
+            '<div class="telemetry-card">' +
+            '<div class="telemetry-card__label">Last Checked</div>' +
+            '<div class="telemetry-card__value telemetry-card__value--sm">' +
+            relTime(p.lastPollAtUtc) +
+            "</div>" +
+            "</div>" +
+            '<div class="telemetry-card">' +
+            '<div class="telemetry-card__label">Next Poll</div>' +
+            '<div class="telemetry-card__value telemetry-card__value--sm" id="detail-countdown">' +
+            countdown(p.nextPollDueAtUtc) +
+            "</div>" +
+            "</div>" +
+            "</div>" +
+            '<div class="detail-panel__state">' +
+            '<span class="state-badge state-badge--' +
+            (STATE_CLASSES[p.currentState] || "unknown") +
+            '">' +
+            '<span class="state-badge__dot"></span>' +
+            (STATE_LABELS[p.currentState] || "Unknown") +
+            "</span>" +
+            '<span class="detail-panel__state-info">Changed ' +
+            daysText +
+            "</span>" +
+            "</div>" +
+            '<div class="detail-panel__actions">' +
+            '<button class="btn btn--ghost btn--sm" onclick="window.__app.toggleActive(' +
+            p.id +
+            "," +
+            !p.isActive +
+            ')">' +
+            (p.isActive ? "\u23F8 Pause" : "\u25B6 Resume") +
+            "</button>" +
+            '<select onchange="window.__app.changeSub(' +
+            p.id +
+            ', parseInt(this.value))">' +
+            '<option value="0"' +
+            (p.subscribedEvents === 0 ? " selected" : "") +
+            ">Sub: None</option>" +
+            '<option value="1"' +
+            (p.subscribedEvents === 1 ? " selected" : "") +
+            ">Sub: In Stock</option>" +
+            '<option value="2"' +
+            (p.subscribedEvents === 2 ? " selected" : "") +
+            ">Sub: Out of Stock</option>" +
+            '<option value="3"' +
+            (p.subscribedEvents === 3 ? " selected" : "") +
+            ">Sub: Both</option>" +
+            "</select>" +
+            '<button class="btn btn--danger btn--sm" onclick="window.__app.deleteProduct(' +
+            p.id +
+            ')">Delete</button>' +
+            "</div>" +
+            '<div class="detail-panel__section-title">Poll History</div>' +
+            (state.loadingDetail
+              ? '<div style="color:var(--text-muted);text-align:center;padding:20px">Loading\u2026</div>'
+              : renderHistoryTable()) +
+            "</div>";
+
+          // Start countdown timer
+          if (state.countdownTimer) clearInterval(state.countdownTimer);
+          state.countdownTimer = setInterval(function () {
+            var el = document.getElementById("detail-countdown");
+            var prod = state.products.find(function (x) {
+              return x.id === state.selectedId;
+            });
+            if (el && prod) el.textContent = countdown(prod.nextPollDueAtUtc);
+          }, 1000);
+        }
+
+        function renderHistoryTable() {
+          if (state.selectedHistory.length === 0) {
+            return '<div style="color:var(--text-muted);text-align:center;padding:16px;font-size:12px">No history yet</div>';
+          }
+          var html =
+            '<table class="history-table"><thead><tr><th>Time</th><th>State</th><th>Parser</th><th>HTTP</th><th>ms</th></tr></thead><tbody>';
+          for (var i = 0; i < state.selectedHistory.length; i++) {
+            var c = state.selectedHistory[i];
+            html +=
+              "<tr>" +
+              "<td>" +
+              timeStr(c.createdAtUtc) +
+              "</td>" +
+              "<td>" +
+              (STATE_LABELS[c.detectedState] || "?") +
+              "</td>" +
+              "<td>" +
+              esc(c.parserStrategy || "\u2014") +
+              "</td>" +
+              "<td>" +
+              (c.httpStatusCode || "\u2014") +
+              "</td>" +
+              "<td>" +
+              c.durationMs +
+              "</td>" +
+              "</tr>";
+          }
+          html += "</tbody></table>";
+          return html;
+        }
+
+        /* =============================================================
+     RENDERING: LIVE FEED
+     ============================================================= */
+        function feedInsertRow(evt) {
+          var tbody = document.getElementById("feed-body");
+          var emptyEl = document.getElementById("feed-empty");
+          emptyEl.classList.add("feed-empty--hidden");
+
+          var p = state.products.find(function (x) {
+            return x.id === evt.productId;
+          });
+          var pName = esc(
+            evt.productName || (p && p.name) || "Product #" + evt.productId,
+          );
+
+          var eventBadge, statusCell, stateCell, durationCell, detailsCell;
+
+          switch (evt.type) {
+            case "poll-success":
+              eventBadge =
+                '<span class="feed-event-type feed-event-type--poll">POLL</span>';
+              statusCell =
+                '<span class="feed-status feed-status--ok">' +
+                (evt.httpStatusCode || "\u2014") +
+                "</span>";
+              stateCell = p
+                ? STATE_LABELS[p.currentState] || "\u2014"
+                : "\u2014";
+              durationCell = evt.durationMs + "ms";
+              detailsCell = "\u2014";
+              break;
+            case "poll-fail":
+              eventBadge =
+                '<span class="feed-event-type feed-event-type--error">FAIL</span>';
+              statusCell =
+                '<span class="feed-status feed-status--error">' +
+                (evt.httpStatusCode || "ERR") +
+                "</span>";
+              stateCell = "\u2014";
+              durationCell = evt.durationMs ? evt.durationMs + "ms" : "\u2014";
+              detailsCell = esc(evt.errorMessage || "Request failed");
+              break;
+            case "error":
+              eventBadge =
+                '<span class="feed-event-type feed-event-type--error">ERROR</span>';
+              statusCell =
+                '<span class="feed-status feed-status--error">ERR</span>';
+              stateCell = "\u2014";
+              durationCell = "\u2014";
+              detailsCell =
+                esc(evt.errorMessage || "") +
+                (evt.consecutiveErrors
+                  ? " (\u00D7" + evt.consecutiveErrors + ")"
+                  : "");
+              break;
+            case "state-change":
+              eventBadge =
+                '<span class="feed-event-type feed-event-type--state">STATE</span>';
+              statusCell = "\u2014";
+              stateCell =
+                (STATE_LABELS[evt.fromState] || "?") +
+                " \u2192 " +
+                (STATE_LABELS[evt.toState] || "?");
+              durationCell = "\u2014";
+              detailsCell = "\u2014";
+              break;
+            case "started":
+              eventBadge =
+                '<span class="feed-event-type feed-event-type--started">START</span>';
+              statusCell = "\u2014";
+              stateCell = "\u2014";
+              durationCell = "\u2014";
+              detailsCell = "\u2014";
+              break;
+            default:
+              eventBadge =
+                '<span class="feed-event-type">' + esc(evt.type) + "</span>";
+              statusCell = "\u2014";
+              stateCell = "\u2014";
+              durationCell = "\u2014";
+              detailsCell = "\u2014";
+          }
+
+          var tr = document.createElement("tr");
+          tr.className = "feed-row--new";
+          tr.innerHTML =
+            "<td>" +
+            timeStr(evt.timestamp) +
+            "</td>" +
+            "<td>" +
+            pName +
+            "</td>" +
+            "<td>" +
+            eventBadge +
+            "</td>" +
+            "<td>" +
+            statusCell +
+            "</td>" +
+            "<td>" +
+            stateCell +
+            "</td>" +
+            "<td>" +
+            durationCell +
+            "</td>" +
+            '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">' +
+            detailsCell +
+            "</td>";
+
+          if (tbody.firstChild) {
+            tbody.insertBefore(tr, tbody.firstChild);
+          } else {
+            tbody.appendChild(tr);
+          }
+
+          // Remove animation class after it plays
+          tr.addEventListener(
+            "animationend",
+            function () {
+              tr.classList.remove("feed-row--new");
+            },
+            { once: true },
+          );
+
+          // Update count
+          document.getElementById("feed-count").textContent =
+            state.feedEvents.length +
+            " event" +
+            (state.feedEvents.length !== 1 ? "s" : "");
+
+          // Tumble off excess rows
+          while (tbody.children.length > MAX_FEED) {
+            var last = tbody.lastElementChild;
+            last.classList.add("feed-row--removing");
+            (function (el) {
+              el.addEventListener(
+                "animationend",
+                function () {
+                  el.remove();
+                },
+                { once: true },
+              );
+            })(last);
+          }
+        }
+
+        /* =============================================================
+     RENDERING: SETTINGS
+     ============================================================= */
+        function renderSettings() {
+          var grid = document.getElementById("settings-grid");
+          var s = state.settings;
+          var configs = state.notifConfigs;
+
+          if (!s) {
+            grid.innerHTML =
+              '<div class="grid__loading" style="grid-column:1/-1">Loading settings\u2026</div>';
+            return;
+          }
+
+          grid.innerHTML =
+            /* User Info */
+            '<div class="settings-card">' +
+            '<div class="settings-card__title">\uD83D\uDC64 User Info</div>' +
+            '<div class="form-group">' +
+            '<label class="form-label">Nickname</label>' +
+            '<input id="s-nickname" value="' +
+            esc(s.nickname) +
+            '">' +
+            "</div>" +
+            '<div class="form-group">' +
+            '<label class="form-label">Email</label>' +
+            '<input id="s-email" type="email" value="' +
+            esc(s.email || "") +
+            '" placeholder="Optional">' +
+            "</div>" +
+            '<div class="form-group">' +
+            '<label class="form-label">Phone</label>' +
+            '<input id="s-phone" type="tel" value="' +
+            esc(s.phone || "") +
+            '" placeholder="Optional">' +
+            "</div>" +
+            "</div>" +
+            /* Polling Config */
+            '<div class="settings-card">' +
+            '<div class="settings-card__title">\u2699\uFE0F Polling</div>' +
+            '<div class="form-row">' +
+            '<div class="form-group">' +
+            '<label class="form-label">Min Interval (s)</label>' +
+            '<input id="s-pollmin" type="number" value="' +
+            s.pollIntervalMinSeconds +
+            '" min="10">' +
+            "</div>" +
+            '<div class="form-group">' +
+            '<label class="form-label">Max Interval (s)</label>' +
+            '<input id="s-pollmax" type="number" value="' +
+            s.pollIntervalMaxSeconds +
+            '" min="10">' +
+            "</div>" +
+            "</div>" +
+            '<div class="form-row">' +
+            '<div class="form-group">' +
+            '<label class="form-label">Max Retries</label>' +
+            '<input id="s-retries" type="number" value="' +
+            s.maxRetryAttempts +
+            '" min="0" max="10">' +
+            "</div>" +
+            '<div class="form-group">' +
+            '<label class="form-label">Retry Delay (s)</label>' +
+            '<input id="s-retrydelay" type="number" value="' +
+            s.retryBaseDelaySeconds +
+            '" min="1">' +
+            "</div>" +
+            "</div>" +
+            '<div class="form-group">' +
+            '<label class="form-label">Min Delay Between Requests (s)</label>' +
+            '<input id="s-mindelay" type="number" value="' +
+            s.minDelayBetweenRequestsSeconds +
+            '" min="1">' +
+            "</div>" +
+            "</div>" +
+            /* Notifications */
+            '<div class="settings-card settings-card--full">' +
+            '<div class="settings-card__title">\uD83D\uDD14 Notification Providers</div>' +
+            '<div class="provider-list">' +
+            configs
+              .map(function (c) {
+                return (
+                  '<div class="provider-card" data-config-id="' +
+                  c.id +
+                  '">' +
+                  '<div class="provider-card__info">' +
+                  '<div class="provider-card__icon">' +
+                  (PROVIDER_ICONS[c.providerType] || "\uD83D\uDD14") +
+                  "</div>" +
+                  "<div>" +
+                  '<div class="provider-card__name">' +
+                  esc(c.displayName) +
+                  "</div>" +
+                  '<div class="provider-card__type">' +
+                  esc(c.providerType) +
+                  "</div>" +
+                  "</div>" +
+                  "</div>" +
+                  '<button class="toggle' +
+                  (c.isEnabled ? " toggle--active" : "") +
+                  '" ' +
+                  'onclick="window.__app.toggleProvider(' +
+                  c.id +
+                  "," +
+                  !c.isEnabled +
+                  ')"></button>' +
+                  "</div>"
+                );
+              })
+              .join("") +
+            "</div>" +
+            "</div>" +
+            /* Save button */
+            '<div style="grid-column:1/-1;text-align:right">' +
+            '<button class="btn btn--primary" onclick="window.__app.saveSettings()">Save Settings</button>' +
+            "</div>";
+        }
+
+        /* =============================================================
+     PRODUCT ACTIONS
+     ============================================================= */
+        function selectProduct(id) {
+          if (state.selectedId === id) {
+            state.selectedId = null;
+            renderDetailPanel();
+            updateAllCardSelections();
+            return;
+          }
+
+          state.selectedId = id;
+          state.selectedHistory = [];
+          state.loadingDetail = true;
+          renderDetailPanel();
+          updateAllCardSelections();
+
+          api.products
+            .history(id)
+            .then(function (result) {
+              state.selectedHistory = result.items;
+              state.loadingDetail = false;
+              renderDetailPanel();
+            })
+            .catch(function () {
+              state.loadingDetail = false;
+              renderDetailPanel();
+            });
+        }
+
+        function updateAllCardSelections() {
+          document.querySelectorAll(".card").forEach(function (el) {
+            var pid = parseInt(el.getAttribute("data-product-id"));
+            el.classList.toggle("card--selected", pid === state.selectedId);
+          });
+        }
+
+        function addProduct(e) {
+          e.preventDefault();
+          var input = document.getElementById("add-url-input");
+          var url = input.value.trim();
+          if (!url) return false;
+
+          api.products
+            .create(url)
+            .then(function (product) {
+              state.products.push(product);
+              renderGrid();
+              input.value = "";
+              toast("Product added!", "success");
+            })
+            .catch(function (err) {
+              toast(err.message || "Failed to add product", "error");
+            });
+          return false;
+        }
+
+        function toggleActive(id, active) {
+          api.products
+            .update(id, { isActive: active })
+            .then(function (updated) {
+              var idx = state.products.findIndex(function (p) {
+                return p.id === id;
+              });
+              if (idx !== -1) state.products[idx] = updated;
+              updateCard(id);
+              if (state.selectedId === id) renderDetailPanel();
+              toast(active ? "Resumed polling" : "Paused polling", "info");
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            });
+        }
+
+        function changeSub(id, sub) {
+          api.products
+            .update(id, { subscribedEvents: sub })
+            .then(function (updated) {
+              var idx = state.products.findIndex(function (p) {
+                return p.id === id;
+              });
+              if (idx !== -1) state.products[idx] = updated;
+              updateCard(id);
+              toast("Subscription updated", "info");
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            });
+        }
+
+        function deleteProduct(id) {
+          var p = state.products.find(function (x) {
+            return x.id === id;
+          });
+          if (
+            !confirm(
+              "Delete " +
+                (p ? p.name || hostname(p.url) : "this product") +
+                "?",
+            )
+          )
+            return;
+
+          api.products
+            .remove(id)
+            .then(function () {
+              state.products = state.products.filter(function (x) {
+                return x.id !== id;
+              });
+              if (state.selectedId === id) {
+                state.selectedId = null;
+                renderDetailPanel();
+              }
+              renderGrid();
+              toast("Product deleted", "info");
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            });
+        }
+
+        /* =============================================================
+     SETTINGS ACTIONS
+     ============================================================= */
+        function saveSettings() {
+          var patch = {
+            nickname: document.getElementById("s-nickname").value,
+            email: document.getElementById("s-email").value || null,
+            phone: document.getElementById("s-phone").value || null,
+            pollIntervalMinSeconds:
+              parseInt(document.getElementById("s-pollmin").value) || 30,
+            pollIntervalMaxSeconds:
+              parseInt(document.getElementById("s-pollmax").value) || 90,
+            maxRetryAttempts:
+              parseInt(document.getElementById("s-retries").value) || 3,
+            retryBaseDelaySeconds:
+              parseInt(document.getElementById("s-retrydelay").value) || 2,
+            minDelayBetweenRequestsSeconds:
+              parseInt(document.getElementById("s-mindelay").value) || 5,
+          };
+          api.settings
+            .update(patch)
+            .then(function (updated) {
+              state.settings = updated;
+              toast("Settings saved!", "success");
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            });
+        }
+
+        function toggleProvider(id, enabled) {
+          api.notifications
+            .updateConfig(id, { isEnabled: enabled })
+            .then(function (updated) {
+              var idx = state.notifConfigs.findIndex(function (c) {
+                return c.id === id;
+              });
+              if (idx !== -1) state.notifConfigs[idx] = updated;
+              renderSettings();
+              toast(
+                updated.displayName + (enabled ? " enabled" : " disabled"),
+                "info",
+              );
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            });
+        }
+
+        /* =============================================================
+     SIGNALR HUB
+     ============================================================= */
+        var hubConnection = null;
+
+        function connectHub() {
+          if (typeof signalR === "undefined") {
+            console.warn("SignalR client not loaded");
+            setConnectionStatus("error", "No SignalR");
+            return;
+          }
+
+          hubConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/UniFiStoreWatcher-hub")
+            .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+            .configureLogging(signalR.LogLevel.Warning)
+            .build();
+
+          hubConnection.on("StockStatusChanged", function (evt) {
+            var p = state.products.find(function (x) {
+              return x.id === evt.productId;
+            });
+            if (p) {
+              p.currentState = evt.toState;
+              p.lastStateChangeAtUtc = evt.detectedAtUtc;
+              updateCard(p.id);
+              if (state.selectedId === p.id) renderDetailPanel();
+            }
+
+            addFeedEvent({
+              type: "state-change",
+              productId: evt.productId,
+              productName: evt.productName,
+              fromState: evt.fromState,
+              toState: evt.toState,
+              timestamp: evt.detectedAtUtc,
+            });
+
+            if (evt.toState === StockState.InStock) {
+              showStockPopup(evt);
+            }
+          });
+
+          hubConnection.on("PollCycleCompleted", function (evt) {
+            var p = state.products.find(function (x) {
+              return x.id === evt.productId;
+            });
+            if (p) {
+              p.lastPollAtUtc = evt.completedAtUtc;
+              p.pollCount++;
+              state.pollingIds.delete(evt.productId);
+              updateCard(p.id);
+              if (state.selectedId === p.id) renderDetailPanel();
+            }
+
+            addFeedEvent({
+              type: evt.success ? "poll-success" : "poll-fail",
+              productId: evt.productId,
+              productName: p ? p.name : null,
+              url: evt.url,
+              httpStatusCode: evt.httpStatusCode,
+              durationMs: evt.durationMs,
+              timestamp: evt.completedAtUtc,
+            });
+          });
+
+          hubConnection.on("PollStarted", function (evt) {
+            state.pollingIds.add(evt.productId);
+            updateCard(evt.productId);
+
+            addFeedEvent({
+              type: "started",
+              productId: evt.productId,
+              productName: null,
+              timestamp: evt.startedAtUtc,
+            });
+          });
+
+          hubConnection.on("PollErrorOccurred", function (evt) {
+            var p = state.products.find(function (x) {
+              return x.id === evt.productId;
+            });
+            if (p) {
+              p.errorCount++;
+              state.pollingIds.delete(evt.productId);
+              updateCard(p.id);
+              if (state.selectedId === p.id) renderDetailPanel();
+            }
+
+            addFeedEvent({
+              type: "error",
+              productId: evt.productId,
+              productName: p ? p.name : null,
+              url: evt.url,
+              errorMessage: evt.errorMessage,
+              consecutiveErrors: evt.consecutiveErrors,
+              timestamp: evt.occurredAtUtc,
+            });
+          });
+
+          hubConnection.onreconnecting(function () {
+            state.hubConnected = false;
+            setConnectionStatus("reconnecting", "Reconnecting\u2026");
+          });
+          hubConnection.onreconnected(function () {
+            state.hubConnected = true;
+            setConnectionStatus("connected", "Connected");
+          });
+          hubConnection.onclose(function () {
+            state.hubConnected = false;
+            setConnectionStatus("error", "Disconnected");
+          });
+
+          hubConnection
+            .start()
+            .then(function () {
+              state.hubConnected = true;
+              setConnectionStatus("connected", "Connected");
+            })
+            .catch(function () {
+              setConnectionStatus("error", "Connection failed");
+            });
+        }
+
+        function addFeedEvent(evt) {
+          state.feedEvents.unshift(evt);
+          if (state.feedEvents.length > MAX_FEED)
+            state.feedEvents.length = MAX_FEED;
+          feedInsertRow(evt);
+        }
+
+        function setConnectionStatus(status, text) {
+          var dot = document.getElementById("status-dot");
+          var txt = document.getElementById("status-text");
+          dot.className = "status-dot";
+          if (status === "connected")
+            dot.classList.add("status-dot--connected");
+          else if (status === "reconnecting")
+            dot.classList.add("status-dot--reconnecting");
+          else if (status === "error") dot.classList.add("status-dot--error");
+          txt.textContent = text;
+        }
+
+        /* =============================================================
+     CONFETTI ENGINE
+     ============================================================= */
+        var confetti = {
+          canvas: null,
+          ctx: null,
+          particles: [],
+          running: false,
+          frameId: null,
+          colors: [
+            "#006fff",
+            "#338aff",
+            "#ffd700",
+            "#059669",
+            "#ffffff",
+            "#ff6b6b",
+            "#f5a623",
+            "#34d399",
+          ],
+
+          init: function () {
+            this.canvas = document.getElementById("confetti-canvas");
+            this.ctx = this.canvas.getContext("2d");
+            this._resize = this.resize.bind(this);
+            window.addEventListener("resize", this._resize);
+            this.resize();
+          },
+
+          resize: function () {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+          },
+
+          start: function () {
+            if (this.running) return;
+            this.running = true;
+            this.particles = [];
+            this.canvas.style.display = "block";
+            this._loop();
+          },
+
+          stop: function () {
+            this.running = false;
+            this.canvas.style.display = "none";
+            this.particles = [];
+            if (this.frameId) cancelAnimationFrame(this.frameId);
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          },
+
+          _spawn: function () {
+            for (var i = 0; i < 4; i++) {
+              this.particles.push({
+                x: Math.random() * this.canvas.width,
+                y: -15,
+                vx: (Math.random() - 0.5) * 3,
+                vy: Math.random() * 3 + 1.5,
+                rot: Math.random() * 360,
+                rotV: (Math.random() - 0.5) * 8,
+                color:
+                  this.colors[Math.floor(Math.random() * this.colors.length)],
+                w: Math.random() * 10 + 5,
+                h: Math.random() * 6 + 3,
+                wobble: Math.random() * 10,
+                wobbleV: Math.random() * 0.08 + 0.03,
+              });
+            }
+          },
+
+          _loop: function () {
+            if (!this.running) return;
+            var ctx = this.ctx;
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this._spawn();
+
+            var alive = [];
+            for (var i = 0; i < this.particles.length; i++) {
+              var p = this.particles[i];
+              p.x += p.vx + Math.sin(p.wobble) * 0.8;
+              p.y += p.vy;
+              p.vy += 0.04;
+              p.rot += p.rotV;
+              p.wobble += p.wobbleV;
+
+              if (p.y < this.canvas.height + 40) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rot * Math.PI) / 180);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = Math.min(
+                  1,
+                  (this.canvas.height + 40 - p.y) / 100,
+                );
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+                alive.push(p);
+              }
+            }
+            this.particles = alive;
+            this.frameId = requestAnimationFrame(this._loop.bind(this));
+          },
+        };
+
+        /* =============================================================
+     STOCK POPUP
+     ============================================================= */
+        function showStockPopup(evt) {
+          var popup = document.getElementById("stock-popup");
+          var link = document.getElementById("popup-link");
+          var img = document.getElementById("popup-image");
+          var name = document.getElementById("popup-product");
+
+          var p = state.products.find(function (x) {
+            return x.id === evt.productId;
+          });
+
+          link.href = evt.url;
+          name.textContent = evt.productName || "Unknown Product";
+
+          if (p && p.imageUrl) {
+            img.src = p.imageUrl;
+            img.style.display = "block";
+          } else {
+            img.style.display = "none";
+          }
+
+          popup.style.display = "flex";
+          popup.classList.add("popup--entering");
+          confetti.start();
+
+          setTimeout(function () {
+            popup.classList.remove("popup--entering");
+          }, 2000);
+        }
+
+        function dismissPopup() {
+          var popup = document.getElementById("stock-popup");
+          popup.style.display = "none";
+          popup.classList.remove("popup--entering");
+          confetti.stop();
+        }
+
+        /* =============================================================
+     ROUTER
+     ============================================================= */
+        function navigate(page) {
+          state.currentPage = page;
+          document.querySelectorAll(".page").forEach(function (el) {
+            el.classList.remove("page--active");
+          });
+          document.getElementById("page-" + page).classList.add("page--active");
+          document.querySelectorAll(".nav-link").forEach(function (el) {
+            el.classList.toggle(
+              "nav-link--active",
+              el.getAttribute("data-page") === page,
+            );
+          });
+
+          if (page === "settings" && !state.settings) {
+            loadSettings();
+          }
+        }
+
+        function loadSettings() {
+          state.loadingSettings = true;
+          renderSettings();
+
+          Promise.all([api.settings.get(), api.notifications.getConfigs()])
+            .then(function (results) {
+              state.settings = results[0];
+              state.notifConfigs = results[1];
+              state.loadingSettings = false;
+              renderSettings();
+            })
+            .catch(function (err) {
+              state.loadingSettings = false;
+              toast("Failed to load settings: " + err.message, "error");
+            });
+        }
+
+        /* =============================================================
+     EVENT DELEGATION
+     ============================================================= */
+        document
+          .getElementById("product-grid")
+          .addEventListener("click", function (e) {
+            var card = e.target.closest("[data-product-id]");
+            if (card)
+              selectProduct(parseInt(card.getAttribute("data-product-id")));
+          });
+
+        /* =============================================================
+     PUBLIC API (for inline onclick handlers)
+     ============================================================= */
+        window.__app = {
+          navigate: navigate,
+          addProduct: addProduct,
+          closePanel: function () {
+            state.selectedId = null;
+            renderDetailPanel();
+            updateAllCardSelections();
+          },
+          toggleActive: toggleActive,
+          changeSub: changeSub,
+          deleteProduct: deleteProduct,
+          dismissPopup: dismissPopup,
+          testPopup: function () {
+            var p = state.products[0];
+            showStockPopup({
+              productId: p ? p.id : 0,
+              url: p ? p.url : "https://eu.store.ui.com",
+              productName: p ? p.name : "Test Product",
+              fromState: StockState.OutOfStock,
+              toState: StockState.InStock,
+              detectedAtUtc: new Date().toISOString(),
+            });
+          },
+          saveSettings: saveSettings,
+          toggleProvider: toggleProvider,
+        };
+
+        /* =============================================================
+     INIT
+     ============================================================= */
+        function init() {
+          confetti.init();
+
+          // Load products
+          api.products
+            .list()
+            .then(function (products) {
+              state.products = products;
+              state.loadingProducts = false;
+              renderGrid();
+            })
+            .catch(function (err) {
+              state.loadingProducts = false;
+              state.products = [];
+              renderGrid();
+              toast("Failed to load products: " + err.message, "error");
+            });
+
+          // Connect SignalR
+          connectHub();
+
+          // Periodic refresh (safety net)
+          setInterval(function () {
+            api.products
+              .list()
+              .then(function (products) {
+                state.products = products;
+                // Don't full re-render to avoid disrupting selections, just update data
+                // Full re-render only if count changed
+                var grid = document.getElementById("product-grid");
+                var currentCards =
+                  grid.querySelectorAll("[data-product-id]").length;
+                if (currentCards !== products.length) {
+                  renderGrid();
+                } else {
+                  products.forEach(function (p) {
+                    updateCard(p.id);
+                  });
+                }
+                if (state.selectedId) renderDetailPanel();
+              })
+              .catch(function () {
+                /* silent */
+              });
+          }, 30000);
+        }
+
+        // Start when DOM is ready
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", init);
+        } else {
+          init();
+        }
+      })();
+    </script>
+  </body>
+</html>

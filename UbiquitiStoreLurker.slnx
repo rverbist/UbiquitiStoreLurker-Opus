@@ -1,7 +1,0 @@
-<Solution>
-  <Project Path="UbiquitiStoreLurker.Web/UbiquitiStoreLurker.Web.csproj" />
-  <Project Path="UbiquitiStoreLurker.ServiceDefaults/UbiquitiStoreLurker.ServiceDefaults.csproj" />
-  <Project Path="UbiquitiStoreLurker.AppHost/UbiquitiStoreLurker.AppHost.csproj" />
-  <Project Path="UbiquitiStoreLurker.Tests/UbiquitiStoreLurker.Tests.csproj" />
-  <Project Path="UbiquitiStoreLurker.AppHostTests/UbiquitiStoreLurker.AppHostTests.csproj" />
-</Solution>

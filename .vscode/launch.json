@@ -1,4 +1,14 @@
 {
   "version": "0.2.0",
-  "configurations": []
+  "configurations": [
+    {
+      "name": "Debug Web App",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  ]
 }

@@ -9,11 +9,35 @@
     "clear": false
   },
   "tasks": [
+    // ── RUN ───────────────────────────────────────────────────────────────────────
+    {
+      "label": "Run Web App",
+      "type": "shell",
+      "command": "dotnet run --project UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dotnet",
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "line": 2
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*Starting UniFiStoreWatcher.*$",
+          "endsPattern": "^.*Now listening on:.*$"
+        }
+      }
+    },
     // ── BUILD ─────────────────────────────────────────────────────────────────────
     {
       "label": "Restore",
       "type": "shell",
-      "command": "dotnet restore UniFiStoreWatch.slnx",
+      "command": "dotnet restore UniFiStoreWatcher.slnx",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -23,7 +47,7 @@
     {
       "label": "Build",
       "type": "shell",
-      "command": "dotnet build UniFiStoreWatch.slnx",
+      "command": "dotnet build UniFiStoreWatcher.slnx",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -36,7 +60,7 @@
     {
       "label": "Rebuild",
       "type": "shell",
-      "command": "dotnet build UniFiStoreWatch.slnx --no-incremental",
+      "command": "dotnet build UniFiStoreWatcher.slnx --no-incremental",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -46,7 +70,7 @@
     {
       "label": "Clean",
       "type": "shell",
-      "command": "dotnet clean UniFiStoreWatch.slnx",
+      "command": "dotnet clean UniFiStoreWatcher.slnx",
       "options": {
         "cwd": "${workspaceFolder}"
       },
