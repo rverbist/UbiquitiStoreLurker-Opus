@@ -274,7 +274,7 @@ try
     app.MapNotificationEndpoints();
     app.MapPushEndpoints();
 
-    app.MapHub<UniFiStoreWatcherHub>("/UniFiStoreWatch-hub");
+    app.MapHub<UniFiStoreWatcherHub>("/UniFiStoreWatcher-hub");
 
     // Health endpoints
     // /api/health/live — liveness: always 200 if the process is running (no checks executed)

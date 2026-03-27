@@ -64,12 +64,19 @@ public sealed partial class ProductInfoExtractor(ILogger<ProductInfoExtractor> l
                     if (imageProp.ValueKind == JsonValueKind.Array)
                     {
                         imageUrls = imageProp.EnumerateArray()
-                            .Select(i => i.GetString())
+                            .Select(i => i.ValueKind == JsonValueKind.Object
+                                ? TryGetString(i, "url")
+                                : i.GetString())
                             .Where(s => s is not null)
                             .ToArray()!;
                         imageUrl = imageUrls.FirstOrDefault();
                     }
-                    else
+                    else if (imageProp.ValueKind == JsonValueKind.Object)
+                    {
+                        // ImageObject: { "@type": "ImageObject", "url": "..." }
+                        imageUrl = TryGetString(imageProp, "url");
+                    }
+                    else if (imageProp.ValueKind == JsonValueKind.String)
                     {
                         imageUrl = imageProp.GetString();
                     }
@@ -86,7 +93,7 @@ public sealed partial class ProductInfoExtractor(ILogger<ProductInfoExtractor> l
 
                 return new ProductInfo(name, sku, description, imageUrl, imageUrls, price, currency);
             }
-            catch (JsonException ex)
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException)
             {
                 LogJsonLdProductInfoFailed(logger, ex);
             }

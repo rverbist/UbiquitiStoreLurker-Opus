@@ -1644,7 +1644,7 @@
        ============================================================ -->
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"
-      integrity="sha512-7SRCYIJtR6F3j5KJPl25hLCKMPkP9eXsFyPgNSthRVgGrn0JRBxVtiR/cqZkMcR+a2cCHKKjPMk0fBgUy1GHQ=="
+      integrity="sha512-7SRCYIJtR6F8ocwW7UxW6wGKqbSyqREDbfCORCbGLatU0iugBLwyOXpzhkPyHIFdBO0K2VCu57fvP2Twgx1o2A=="
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     ></script>
@@ -2636,6 +2636,20 @@
               state.pollingIds.delete(evt.productId);
               updateCard(p.id);
               if (state.selectedId === p.id) renderDetailPanel();
+            }
+
+            // Re-fetch product to pick up updated name, imageUrl, state, etc.
+            if (evt.success) {
+              api.products.get(evt.productId).then(function (updated) {
+                var idx = state.products.findIndex(function (x) {
+                  return x.id === evt.productId;
+                });
+                if (idx !== -1) {
+                  state.products[idx] = updated;
+                  updateCard(evt.productId);
+                  if (state.selectedId === evt.productId) renderDetailPanel();
+                }
+              }).catch(function () { /* silent — stale data is acceptable */ });
             }
 
             addFeedEvent({

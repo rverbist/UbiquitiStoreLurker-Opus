@@ -48,7 +48,7 @@ public sealed partial class PollWorkerService(
             await broadcaster.BroadcastPollStartedAsync(
                 new PollStarted(item.ProductId, item.Url, DateTimeOffset.UtcNow), ct);
 
-            var client = httpClientFactory.CreateClient("UniFiStoreWatcherPoller");
+            var client = httpClientFactory.CreateClient("UniFiStoreWatchPoller");
             var response = await client.GetAsync(item.Url, ct);
             statusCode = (int)response.StatusCode;
             sw.Stop();

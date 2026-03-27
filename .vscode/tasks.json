@@ -33,6 +33,26 @@
         }
       }
     },
+    {
+      "label": "Launch Site",
+      "type": "shell",
+      "command": "Start-Process 'http://localhost:5248'",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run & Launch",
+      "dependsOn": [
+        "Run Web App",
+        "Launch Site"
+      ],
+      "dependsOrder": "sequence",
+      "group": "test",
+      "problemMatcher": []
+    },
     // ── BUILD ─────────────────────────────────────────────────────────────────────
     {
       "label": "Restore",
