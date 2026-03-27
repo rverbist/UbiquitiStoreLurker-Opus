@@ -87,3 +87,6 @@ _ReSharper*/
 ## Windows
 Thumbs.db
 desktop.ini
+
+# Runtime-cached product images (downloaded by ProductImageService)
+UniFiStoreWatcher.Web/wwwroot/images/products/
