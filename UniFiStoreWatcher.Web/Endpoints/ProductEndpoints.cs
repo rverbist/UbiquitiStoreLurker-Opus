@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using UniFiStoreWatcher.Web.Data;
 using UniFiStoreWatcher.Web.Data.Entities;
+using UniFiStoreWatcher.Web.Services;
+using UniFiStoreWatcher.Web.Services.Parsing;
 
 namespace UniFiStoreWatcher.Web.Endpoints;
 
@@ -66,6 +68,9 @@ public static class ProductEndpoints
     private static async Task<IResult> CreateProduct(
         CreateProductRequest request,
         UniFiStoreWatcherDbContext db,
+        IHttpClientFactory httpClientFactory,
+        ProductInfoExtractor extractor,
+        ProductImageService imageService,
         CancellationToken ct)
     {
         if (!Uri.TryCreate(request.Url, UriKind.Absolute, out _))
@@ -88,6 +93,33 @@ public static class ProductEndpoints
 
         db.Products.Add(product);
         await db.SaveChangesAsync(ct);
+
+        // Eagerly enrich name/image in the same request so the UI shows data immediately.
+        try
+        {
+            var client = httpClientFactory.CreateClient("UniFiStoreWatchPoller");
+            using var response = await client.GetAsync(request.Url, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                var html = await response.Content.ReadAsStringAsync(ct);
+                var info = await extractor.ExtractAsync(html, ct);
+
+                if (info.Name is not null) product.Name = info.Name;
+                if (info.ProductCode is not null) product.ProductCode = info.ProductCode;
+                if (info.Description is not null) product.Description = info.Description;
+                if (info.ImageUrl is not null)
+                {
+                    product.ImageUrl = info.ImageUrl;
+                    product.LocalImagePath = await imageService.DownloadAndCacheAsync(product.Id, info.ImageUrl, ct);
+                }
+
+                await db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception)
+        {
+            // Non-fatal: the background poller will fill in metadata on the first poll cycle.
+        }
 
         return Results.Created($"/api/products/{product.Id}", ToDto(product));
     }

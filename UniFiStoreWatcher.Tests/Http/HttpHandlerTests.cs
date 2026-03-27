@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,8 +8,7 @@ using UniFiStoreWatcher.Web.Services.Polling;
 namespace UniFiStoreWatcher.Tests.Http;
 
 /// <summary>
-/// Unit tests for BrowserFingerprintHandler, UbiquitiCookieJar/Handler, and the
-/// rewritten ClientSideRateLimitHandler.
+/// Unit tests for BrowserFingerprintHandler and UbiquitiCookieJar/Handler.
 /// </summary>
 [TestFixture]
 public class HttpHandlerTests
@@ -199,67 +197,6 @@ public class HttpHandlerTests
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // ClientSideRateLimitHandler tests
-    // ──────────────────────────────────────────────────────────────────────────
-
-    [Test]
-    public async Task ClientSideRateLimitHandler_RespectsJitteredGap()
-    {
-        // Use a small gap with no jitter so timing is deterministic.
-        const int gapMs = 300;
-        var inner = new EchoHandler();
-        var handler = new ClientSideRateLimitHandler(minGapMs: gapMs, jitterPercent: 0)
-        {
-            InnerHandler = inner,
-        };
-
-        using var client = new HttpClient(handler);
-
-        // First request — consumes the "free" slot and sets the gap.
-        await client.GetAsync("http://localhost/");
-
-        // Measure time for the second request (must wait ≥ gapMs).
-        var sw = Stopwatch.StartNew();
-        await client.GetAsync("http://localhost/");
-        sw.Stop();
-
-        // Allow 30% under-measurement tolerance (timer resolution, CI jitter).
-        Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(gapMs * 0.6),
-            $"Expected second request to wait at least {gapMs * 0.6} ms, took {sw.ElapsedMilliseconds} ms");
-    }
-
-    [Test]
-    public async Task ClientSideRateLimitHandler_BlocksAllRequestsOn429WithRetryAfter()
-    {
-        // Server returns 429 with Retry-After: 30 s on the first request.
-        var responses = new Queue<HttpResponseMessage>();
-        var tooManyRequests = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
-        tooManyRequests.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
-            TimeSpan.FromSeconds(30));
-        responses.Enqueue(tooManyRequests);
-        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)); // should never be reached in time
-
-        var inner = new QueuedResponseHandler(responses);
-        // Use a very short base gap so only the Retry-After matters.
-        var handler = new ClientSideRateLimitHandler(minGapMs: 50, jitterPercent: 0)
-        {
-            InnerHandler = inner,
-        };
-
-        using var client = new HttpClient(handler);
-
-        // Issue first request → receives 429.
-        await client.GetAsync("http://localhost/");
-
-        // Second request must be blocked for 30 s; cancel after 500 ms to prove it's waiting.
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-        Assert.That(
-            async () => await client.GetAsync("http://localhost/", cts.Token),
-            Throws.InstanceOf<OperationCanceledException>(),
-            "Second request should have been blocked by the Retry-After delay");
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -278,19 +215,5 @@ public class HttpHandlerTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(factory(request));
-    }
-
-    private sealed class EchoHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-    }
-
-    private sealed class QueuedResponseHandler(Queue<HttpResponseMessage> responses) : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(responses.Dequeue());
     }
 }

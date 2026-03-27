@@ -137,18 +137,30 @@ public sealed partial class PollWorkerService(
         var product = await db.Products.FindAsync([item.ProductId], ct);
         if (product is not null)
         {
-            // Enrich metadata on the first successful fetch (name not yet populated)
-            if (html is not null && product.Name is null)
+            // Enrich metadata on every successful fetch – update fields that changed or are missing
+            if (html is not null)
             {
                 var extractor = scope.ServiceProvider.GetRequiredService<ProductInfoExtractor>();
                 var info = await extractor.ExtractAsync(html, ct);
 
-                if (info.Name is not null) product.Name = info.Name;
-                if (info.ProductCode is not null) product.ProductCode = info.ProductCode;
-                if (info.Description is not null) product.Description = info.Description;
-                if (info.ImageUrl is not null) product.ImageUrl = info.ImageUrl;
+                if (info.Name is not null && info.Name != product.Name)
+                    product.Name = info.Name;
+                if (info.ProductCode is not null && info.ProductCode != product.ProductCode)
+                    product.ProductCode = info.ProductCode;
+                if (info.Description is not null && info.Description != product.Description)
+                    product.Description = info.Description;
+                if (info.ImageUrl is not null && info.ImageUrl != product.ImageUrl)
+                {
+                    product.ImageUrl = info.ImageUrl;
+                    // Invalidate the cached copy so it gets re-downloaded with the new URL
+                    product.LocalImagePath = null;
+                }
                 if (info.ImageUrls is { Length: > 0 })
-                    product.ImageUrls = JsonSerializer.Serialize(info.ImageUrls);
+                {
+                    var serialized = JsonSerializer.Serialize(info.ImageUrls);
+                    if (serialized != product.ImageUrls)
+                        product.ImageUrls = serialized;
+                }
             }
 
             // Download and cache the primary image if not yet stored locally

@@ -19,15 +19,9 @@ public sealed class PollOptions
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     /// <summary>
-    /// Minimum milliseconds between successive HTTP requests to the store.
-    /// A random ±<see cref="JitterPercent"/>% is applied per request.
-    /// Default: 12 000 ms (12 s).
+    /// Gap in milliseconds between each product's first poll on startup.
+    /// Products that have never been polled are staggered by this interval so they don't
+    /// all fire simultaneously. Default: 12 000 ms (12 s).
     /// </summary>
     public int MinRequestGapMs { get; set; } = 12_000;
-
-    /// <summary>
-    /// Jitter percentage applied to <see cref="MinRequestGapMs"/>.
-    /// E.g., 30 means actual gap is random in [MinRequestGapMs×0.7, MinRequestGapMs×1.3].
-    /// </summary>
-    public int JitterPercent { get; set; } = 30;
 }

@@ -53,17 +53,4 @@ public static class UniFiStoreWatcherMetrics
         }
     );
 
-    // Rate-limit observability ───────────────────────────────────────────────
-
-    /// <summary>Incremented each time the Ubiquiti store returns HTTP 429.</summary>
-    public static readonly Counter RateLimitServer429Total = Prometheus.Metrics.CreateCounter(
-        "UniFiStoreWatcher_rate_limit_server_429_total",
-        "Total number of HTTP 429 responses received from the target store"
-    );
-
-    /// <summary>Last observed jittered inter-request gap in milliseconds.</summary>
-    public static readonly Gauge PollRequestGapMs = Prometheus.Metrics.CreateGauge(
-        "UniFiStoreWatcher_poll_request_gap_ms",
-        "Last jittered inter-request gap applied by the client-side rate limiter (ms)"
-    );
 }

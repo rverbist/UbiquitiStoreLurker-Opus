@@ -122,18 +122,6 @@ try
     builder.Services.AddSingleton(pollChannel.Writer);
 
     // HTTP client for polling
-    var pollOptions = builder.Configuration
-        .GetSection(PollOptions.SectionName)
-        .Get<PollOptions>() ?? new PollOptions();
-
-    // HTTP client for downloading product images to the local cache
-    builder.Services.AddHttpClient("ImageDownloader", client =>
-    {
-        client.Timeout = TimeSpan.FromSeconds(30);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-    });
 
     // Singleton cookie jar — seeds required EU store cookies and persists server-set
     // cookies across handler-chain rotations and container restarts.
@@ -159,10 +147,7 @@ try
             System.Net.DecompressionMethods.Deflate,
     })
     // Handler chain (outermost first):
-    //   ClientSideRateLimitHandler → UbiquitiCookieHandler → BrowserFingerprintHandler → primary
-    .AddHttpMessageHandler(() => new ClientSideRateLimitHandler(
-        pollOptions.MinRequestGapMs,
-        pollOptions.JitterPercent))
+    //   UbiquitiCookieHandler → BrowserFingerprintHandler → primary
     .AddHttpMessageHandler<UbiquitiCookieHandler>()
     .AddHttpMessageHandler<BrowserFingerprintHandler>()
     .AddStandardResilienceHandler(resilienceOptions =>

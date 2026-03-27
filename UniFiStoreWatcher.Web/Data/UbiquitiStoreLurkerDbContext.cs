@@ -61,6 +61,76 @@ public class UniFiStoreWatcherDbContext(DbContextOptions<UniFiStoreWatcherDbCont
             e.HasIndex(s => s.Endpoint).IsUnique();
         });
 
+        // Product seed — pre-populated watchlist
+        modelBuilder.Entity<Product>(e =>
+        {
+            e.HasData(
+                new Product
+                {
+                    Id = 1, Url = "https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-4",
+                    ProductCode = "UNAS-Pro-4", Name = "UNAS Pro 4",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                },
+                new Product
+                {
+                    Id = 2, Url = "https://eu.store.ui.com/eu/en/category/network-storage/products/unas-pro-8",
+                    ProductCode = "UNAS-Pro-8", Name = "UNAS Pro 8",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                },
+                new Product
+                {
+                    Id = 3, Url = "https://eu.store.ui.com/eu/en/category/wifi-bridging/products/udb-iot",
+                    ProductCode = "UDB-IoT", Name = "UDB IoT",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                },
+                new Product
+                {
+                    Id = 4, Url = "https://eu.store.ui.com/eu/en/category/wifi-special-devices/products/utr",
+                    ProductCode = "UTR", Name = "UTR",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                },
+                new Product
+                {
+                    Id = 5, Url = "https://eu.store.ui.com/eu/en/category/cameras-dome-turret/products/uvc-g6-edge-turret",
+                    ProductCode = "UVC-G6-Edge-Turret", Name = "UVC G6 Edge Turret",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                },
+                new Product
+                {
+                    Id = 6, Url = "https://eu.store.ui.com/eu/en/category/cameras-dome-turret/products/uvc-g6-edge-dome",
+                    ProductCode = "UVC-G6-Edge-Dome", Name = "UVC G6 Edge Dome",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                },
+                new Product
+                {
+                    Id = 7, Url = "https://eu.store.ui.com/eu/en/category/accessories-storage/collections/unifi-accessory-tech-hdd/products/uacc-hdd-e-24tb",
+                    ProductCode = "UACC-HDD-E-24TB", Name = "UACC HDD E-24TB",
+                    IsActive = true, SubscribedEvents = SubscriptionType.InStock,
+                    CurrentState = StockState.Unknown, PreviousState = StockState.Unknown,
+                    NextPollDueAtUtc = DateTimeOffset.UnixEpoch,
+                    CreatedAtUtc = DateTimeOffset.UnixEpoch, UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+                }
+            );
+        });
+
         // AppSettings — singleton, always Id = 1
         modelBuilder.Entity<AppSettings>(e =>
         {

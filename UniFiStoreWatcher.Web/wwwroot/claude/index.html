@@ -1710,6 +1710,10 @@
           loadingDetail: false,
           loadingSettings: false,
           countdownTimer: null,
+          pushSupported: "serviceWorker" in navigator && "PushManager" in window,
+          pushSubscribed: false,
+          pushLoading: false,
+          pushError: null,
         };
 
         /* =============================================================
@@ -1842,7 +1846,150 @@
               });
             },
           },
+          push: {
+            subscribe: function (payload) {
+              return api.request("/push/subscribe", {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+            },
+            unsubscribe: function (payload) {
+              return api.request("/push/unsubscribe", {
+                method: "DELETE",
+                body: JSON.stringify(payload),
+              });
+            },
+            test: function () {
+              return api.request("/push/test", { method: "POST", body: "{}" });
+            },
+          },
         };
+
+        /* =============================================================
+     BROWSER PUSH NOTIFICATIONS
+     ============================================================= */
+        function urlBase64ToUint8Array(base64String) {
+          var padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+          var base64 = (base64String + padding)
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+          var rawData = atob(base64);
+          var arr = new Uint8Array(rawData.length);
+          for (var i = 0; i < rawData.length; i++) {
+            arr[i] = rawData.charCodeAt(i);
+          }
+          return arr;
+        }
+
+        function checkPushSubscribed() {
+          if (!state.pushSupported) return;
+          navigator.serviceWorker.ready
+            .then(function (reg) {
+              return reg.pushManager.getSubscription();
+            })
+            .then(function (sub) {
+              state.pushSubscribed = !!sub;
+              renderSettings();
+            })
+            .catch(function () {
+              state.pushSubscribed = false;
+            });
+        }
+
+        function pushSubscribe() {
+          if (!state.pushSupported) return;
+          if (!state.settings || !state.settings.vapidPublicKey) {
+            toast("VAPID public key not available", "error");
+            return;
+          }
+          state.pushLoading = true;
+          state.pushError = null;
+          renderSettings();
+          navigator.serviceWorker.ready
+            .then(function (reg) {
+              return reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(
+                  state.settings.vapidPublicKey,
+                ),
+              });
+            })
+            .then(function (sub) {
+              var json = sub.toJSON();
+              return api.push.subscribe({
+                endpoint: sub.endpoint,
+                p256dh: (json.keys && json.keys.p256dh) || "",
+                auth: (json.keys && json.keys.auth) || "",
+              });
+            })
+            .then(function () {
+              state.pushSubscribed = true;
+              state.pushLoading = false;
+              toast("Push notifications enabled!", "success");
+              renderSettings();
+            })
+            .catch(function (e) {
+              state.pushLoading = false;
+              state.pushError = String(e);
+              renderSettings();
+              toast("Failed to enable push: " + String(e), "error");
+            });
+        }
+
+        function pushUnsubscribe() {
+          if (!state.pushSupported) return;
+          state.pushLoading = true;
+          state.pushError = null;
+          renderSettings();
+          navigator.serviceWorker.ready
+            .then(function (reg) {
+              return reg.pushManager.getSubscription();
+            })
+            .then(function (sub) {
+              if (!sub) return;
+              var json = sub.toJSON();
+              return api.push
+                .unsubscribe({
+                  endpoint: sub.endpoint,
+                  p256dh: (json.keys && json.keys.p256dh) || "",
+                  auth: (json.keys && json.keys.auth) || "",
+                })
+                .then(function () {
+                  return sub.unsubscribe();
+                });
+            })
+            .then(function () {
+              state.pushSubscribed = false;
+              state.pushLoading = false;
+              toast("Push notifications disabled", "info");
+              renderSettings();
+            })
+            .catch(function (e) {
+              state.pushLoading = false;
+              state.pushError = String(e);
+              renderSettings();
+              toast("Failed to disable push: " + String(e), "error");
+            });
+        }
+
+        function pushSendTest() {
+          state.pushLoading = true;
+          state.pushError = null;
+          renderSettings();
+          api.push
+            .test()
+            .then(function () {
+              state.pushLoading = false;
+              toast("Test notification sent!", "success");
+              renderSettings();
+            })
+            .catch(function (e) {
+              state.pushLoading = false;
+              state.pushError = String(e);
+              renderSettings();
+              toast("Test failed: " + String(e), "error");
+            });
+        }
 
         /* =============================================================
      TOAST NOTIFICATIONS
@@ -2407,6 +2554,36 @@
               .join("") +
             "</div>" +
             "</div>" +
+            /* Browser Push */
+            '<div class="settings-card settings-card--full">' +
+            '<div class="settings-card__title">\uD83D\uDD14 Browser Push Notifications</div>' +
+            (state.pushSupported
+              ? '<p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Status: <strong>' +
+                (state.pushSubscribed ? "Subscribed \u2713" : "Not subscribed") +
+                "</strong></p>" +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+                (!state.pushSubscribed
+                  ? '<button class="btn btn--primary" onclick="window.__app.pushSubscribe()"' +
+                    (state.pushLoading || !state.settings || !state.settings.vapidPublicKey
+                      ? " disabled"
+                      : "") +
+                    ">" +
+                    (state.pushLoading ? "Subscribing\u2026" : "Enable Push Notifications") +
+                    "</button>"
+                  : '<button class="btn btn--ghost" onclick="window.__app.pushUnsubscribe()"' +
+                    (state.pushLoading ? " disabled" : "") +
+                    ">Disable Push</button>" +
+                    '<button class="btn btn--ghost" onclick="window.__app.pushSendTest()"' +
+                    (state.pushLoading ? " disabled" : "") +
+                    ">Send Test</button>") +
+                "</div>" +
+                (state.pushError
+                  ? '<p style="color:var(--danger);font-size:12px;margin:8px 0 0">' +
+                    esc(state.pushError) +
+                    "</p>"
+                  : "")
+              : '<p style="color:var(--text-muted);font-size:13px;margin:0">Browser Push is not supported in this browser.</p>') +
+            "</div>" +
             /* Save button */
             '<div style="grid-column:1/-1;text-align:right">' +
             '<button class="btn btn--primary" onclick="window.__app.saveSettings()">Save Settings</button>' +
@@ -2912,6 +3089,7 @@
               state.notifConfigs = results[1];
               state.loadingSettings = false;
               renderSettings();
+              checkPushSubscribed();
             })
             .catch(function (err) {
               state.loadingSettings = false;
@@ -2958,6 +3136,9 @@
           },
           saveSettings: saveSettings,
           toggleProvider: toggleProvider,
+          pushSubscribe: pushSubscribe,
+          pushUnsubscribe: pushUnsubscribe,
+          pushSendTest: pushSendTest,
         };
 
         /* =============================================================

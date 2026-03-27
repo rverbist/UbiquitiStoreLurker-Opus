@@ -28,7 +28,7 @@ public sealed partial class ProductImageService(
         string? tempPath = null;
         try
         {
-            var client = httpClientFactory.CreateClient("ImageDownloader");
+            var client = httpClientFactory.CreateClient("UniFiStoreWatchPoller");
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
 
             if (!response.IsSuccessStatusCode)
