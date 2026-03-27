@@ -2,12 +2,24 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Web App",
-      "type": "dotnet",
+      "name": "USW: Web Server",
+      "type": "coreclr",
       "request": "launch",
-      "projectPath": "${workspaceFolder}/UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj",
+      "preLaunchTask": "usw:build",
+      "program": "${workspaceFolder}/UniFiStoreWatcher.Web/bin/Debug/net10.0/UniFiStoreWatcher.Web.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/UniFiStoreWatcher.Web",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      },
       "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "sourceFileMap": {
+        "/Views": "${workspaceFolder}/Views"
       }
     }
   ]

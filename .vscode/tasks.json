@@ -1,5 +1,8 @@
 {
   "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
   "presentation": {
     "echo": true,
     "reveal": "always",
@@ -8,93 +11,76 @@
     "showReuseMessage": false,
     "clear": false
   },
+  "problemMatcher": [],
   "tasks": [
     // ── RUN ───────────────────────────────────────────────────────────────────────
     {
-      "label": "Run Web App",
+      "label": "usw:webserver",
       "type": "shell",
-      "command": "dotnet run --project UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj",
-      "options": {
-        "cwd": "${workspaceFolder}"
+      "command": "dotnet run --project ${workspaceFolderBasename}.Web/${workspaceFolderBasename}.Web.csproj",
+      "detail": "Builds and runs the web server project",
+      "icon": {
+        "id": "server-process",
+        "color": "terminal.ansiCyan"
       },
-      "group": "test",
+      "group": "none",
       "isBackground": true,
-      "problemMatcher": {
-        "owner": "dotnet",
-        "pattern": {
-          "regexp": "^.*$",
-          "file": 1,
-          "line": 2
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^.*Starting UniFiStoreWatcher.*$",
-          "endsPattern": "^.*Now listening on:.*$"
+      "options": {
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "DOTNET_ENVIRONMENT": "Development"
         }
-      }
+      },
     },
     {
-      "label": "Launch Site",
+      "label": "usw:browse",
       "type": "shell",
       "command": "Start-Process 'http://localhost:5248'",
-      "options": {
-        "cwd": "${workspaceFolder}"
+      "detail": "Opens the web server in the default browser",
+      "icon": {
+        "id": "globe",
+        "color": "terminal.ansiCyan"
       },
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "Run & Launch",
-      "dependsOn": [
-        "Run Web App",
-        "Launch Site"
-      ],
-      "dependsOrder": "sequence",
-      "group": "test",
-      "problemMatcher": []
+      "group": "none"
     },
     // ── BUILD ─────────────────────────────────────────────────────────────────────
     {
-      "label": "Restore",
+      "label": "usw:build",
       "type": "shell",
-      "command": "dotnet restore UniFiStoreWatcher.slnx",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Build",
-      "type": "shell",
-      "command": "dotnet build UniFiStoreWatcher.slnx",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "command": "dotnet build ${workspaceFolderBasename}.slnx --no-restore",
       "group": {
         "kind": "build",
         "isDefault": true
       },
+      "detail": "Build the full solution",
+      "icon": {
+        "id": "tools",
+        "color": "terminal.ansiGreen"
+      },
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Rebuild",
+      "label": "usw:restore",
       "type": "shell",
-      "command": "dotnet build UniFiStoreWatcher.slnx --no-incremental",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "command": "dotnet restore ${workspaceFolderBasename}.slnx",
       "group": "build",
+      "detail": "Downloads and resolves NuGet package dependencies",
+      "icon": {
+        "id": "package",
+        "color": "terminal.ansiGreen"
+      },
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Clean",
+      "label": "usw:clean",
       "type": "shell",
-      "command": "dotnet clean UniFiStoreWatcher.slnx",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "command": "dotnet clean ${workspaceFolderBasename}.slnx",
       "group": "build",
+      "detail": "Deletes build output directories (bin/ and obj/)",
+      "icon": {
+        "id": "trash",
+        "color": "terminal.ansiGreen"
+      },
       "problemMatcher": "$msCompile"
     }
   ]
