@@ -72,8 +72,6 @@ BenchmarkDotNet.Artifacts/
 ## Environment & secrets — never commit real secrets
 .env
 .env.*
-!.env.example
-!.env.Example
 
 ## JetBrains Rider
 *.sln.iml

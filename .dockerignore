@@ -9,7 +9,6 @@
 # Secrets and local env overrides
 .env
 .env.*
-!.env.Example
 
 # SQLite remnants
 *.db
