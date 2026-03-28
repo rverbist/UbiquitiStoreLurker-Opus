@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using UniFiStoreWatcher.Web.Data;
 using UniFiStoreWatcher.Web.Data.Entities;
@@ -11,18 +10,13 @@ public class DataModelTests
     private static readonly string[] ExpectedProviderTypes =
         ["BrowserPush", "Email", "Sms", "Teams", "Discord"];
 
-    private SqliteConnection _connection = null!;
     private UniFiStoreWatcherDbContext _db = null!;
 
     [SetUp]
     public void Setup()
     {
-        // Keep the connection open so the in-memory database persists across queries.
-        _connection = new SqliteConnection("Data Source=:memory:");
-        _connection.Open();
-
         var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(_connection)
+            .UseInMemoryDatabase($"DataModelTests-{Guid.NewGuid():N}")
             .Options;
 
         _db = new UniFiStoreWatcherDbContext(options);
@@ -33,7 +27,6 @@ public class DataModelTests
     public void TearDown()
     {
         _db.Dispose();
-        _connection.Dispose();
     }
 
     [Test]
@@ -116,6 +109,8 @@ public class DataModelTests
     [Test]
     public async Task DateTimeOffset_RoundTrips_Correctly()
     {
+        // SQL Server stores datetimeoffset with 100-nanosecond precision.
+        // Truncate to milliseconds to keep the assertion tolerance tight.
         var now = DateTimeOffset.UtcNow;
         var product = new Product { Url = "https://store.ui.com/eu/en/products/dto-test" };
         product.NextPollDueAtUtc = now;
@@ -125,7 +120,6 @@ public class DataModelTests
         _db.ChangeTracker.Clear();
         var retrieved = await _db.Products.FindAsync(product.Id);
 
-        // Allow 1ms precision loss from tick truncation
         Assert.That(retrieved!.NextPollDueAtUtc,
             Is.EqualTo(product.NextPollDueAtUtc).Within(TimeSpan.FromMilliseconds(1)));
     }

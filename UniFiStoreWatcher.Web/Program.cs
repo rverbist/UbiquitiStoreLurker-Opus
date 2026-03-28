@@ -1,11 +1,13 @@
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Http.Resilience;
 using Prometheus;
 using Serilog;
 using Serilog.Formatting.Compact;
+using System.Net;
 using UniFiStoreWatcher.Web.Data;
 using UniFiStoreWatcher.Web.Endpoints;
 using UniFiStoreWatcher.Web.Http;
@@ -24,6 +26,13 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .WriteTo.Console(new CompactJsonFormatter())
     .CreateBootstrapLogger();
+
+// Load .env and .env.{environment} files from the project root (or any ancestor directory).
+// Env vars set in the OS environment take precedence over file values.
+// In Docker, env vars come from Docker Compose env_file, so this is a no-op there.
+DotNetEnv.Env.TraversePath().NoClobber().Load();
+var aspnetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+DotNetEnv.Env.TraversePath().NoClobber().Load($".env.{aspnetEnv}");
 
 try
 {
@@ -91,10 +100,14 @@ try
     // Add DbContext
     builder.Services.AddDbContext<UniFiStoreWatcherDbContext>(options =>
     {
-        var dbPath = builder.Configuration.GetConnectionString("UniFiStoreWatch-db")
-            ?? "Data Source=/data/UniFiStoreWatch.db";
-        options.UseSqlite(dbPath)
-               .AddInterceptors(new SqliteWalModeInterceptor());
+        var connStr = builder.Configuration.GetConnectionString("UniFiStoreWatch-db")
+            ?? throw new InvalidOperationException(
+                "Connection string 'UniFiStoreWatch-db' is not configured. " +
+                "Set it via an env file or the ConnectionStrings__UniFiStoreWatch-db environment variable.");
+        if (connStr.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
+            options.UseInMemoryDatabase(connStr["InMemory:".Length..]);
+        else
+            options.UseSqlServer(connStr);
     });
 
     builder.Services.AddHealthChecks()
@@ -188,49 +201,29 @@ try
 
     var app = builder.Build();
 
+    // Trust X-Forwarded-For and X-Forwarded-Proto from the Traefik proxy at 172.18.2.4
+    // on the Docker 'proxy' network (172.18.0.0/16). ForwardLimit = 1 prevents header spoofing.
+    var fwdOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        ForwardLimit = 1,
+    };
+    fwdOptions.KnownProxies.Add(IPAddress.Parse("172.18.2.4"));
+    app.UseForwardedHeaders(fwdOptions);
+
     app.UseExceptionHandler();
 
-    // Auto-migrate on startup
+    // Auto-migrate on startup; use EnsureCreated for InMemory (tests)
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
-        await db.Database.MigrateAsync();
+        if (db.Database.IsInMemory())
+            await db.Database.EnsureCreatedAsync();
+        else
+            await db.Database.MigrateAsync();
     }
 
     app.UseHttpMetrics();
-
-    // Route UI shells before static files
-    var claudeDashboard = System.IO.Path.Combine(app.Environment.WebRootPath, "claude", "index.html");
-    var vueSpa = System.IO.Path.Combine(app.Environment.WebRootPath, "index.html");
-
-    app.Use(async (context, next) =>
-    {
-        var path = context.Request.Path.Value ?? "";
-
-        // Claude dashboard (v2) — primary UI on /, /monitor, /v2/monitor, /claude
-        if (path.Equals("/", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/monitor", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/monitor/", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/v2/monitor", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/v2/monitor/", StringComparison.OrdinalIgnoreCase)
-)
-        {
-            context.Response.ContentType = "text/html; charset=utf-8";
-            await context.Response.SendFileAsync(claudeDashboard);
-            return;
-        }
-
-        // Vue SPA (v1) — legacy UI at /v1/monitor
-        if (path.Equals("/v1/monitor", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/v1/monitor/", StringComparison.OrdinalIgnoreCase))
-        {
-            context.Response.ContentType = "text/html; charset=utf-8";
-            await context.Response.SendFileAsync(vueSpa);
-            return;
-        }
-
-        await next();
-    });
 
     app.UseStaticFiles();
 
@@ -283,8 +276,8 @@ try
 
     app.MapMetrics("/api/metrics");
 
-    // SPA fallback — serves Claude dashboard for any unmatched non-file routes
-    app.MapFallbackToFile("claude/index.html");
+    // SPA fallback — serves the built Vue app for any unmatched non-file routes
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }

@@ -6,39 +6,10 @@
     ],
     "settings": {
         "window.title": "USW",
-        // ── Editor ──────────────────────────────────────────────────────────────────
-        "editor.tabSize": 4,
-        "editor.insertSpaces": true,
-        "editor.trimAutoWhitespace": true,
-        "editor.formatOnSave": true,
-        "editor.rulers": [
-            240
-        ],
-        // ── Files ────────────────────────────────────────────────────────────────────
-        "files.eol": "\n",
-        "files.trimTrailingWhitespace": true,
-        "files.insertFinalNewline": true,
-        "files.associations": {
-            "*.conf": "properties",
-            "*.env": "dotenv"
-        },
-        // ── Terminal ──────────────────────────────────────────────────────────────────
-        "terminal.integrated.defaultProfile.windows": "PowerShell",
-        "terminal.integrated.cwd": "${workspaceFolder}",
-        // ── Markdown ─────────────────────────────────────────────────────────────────
-        "markdownlint.config": {
-            "extends": ".markdownlint.json"
-        },
-        "remote.autoForwardPorts": false,
-        // ── YAML ──────────────────────────────────────────────────────────────────────
-        "yaml.format.enable": true,
-        "yaml.validate": true,
-        // ── PowerShell ───────────────────────────────────────────────────────────────
-        "powershell.powerShellDefaultVersion": "PowerShell (x64)",
-        "powershell.cwd": "${workspaceFolder}",
         "files.exclude": {
             "**/bin/": true,
-            "**/obj/": true
+            "**/obj/": true,
+			"**/.vs/": true
         }
     }
 }

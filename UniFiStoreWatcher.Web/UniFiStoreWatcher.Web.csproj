@@ -7,7 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*"
       PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"
@@ -25,6 +26,7 @@
     <PackageReference Include="Lib.Net.Http.WebPush" Version="3.*" />
     <PackageReference Include="MailKit" Version="4.*" />
     <PackageReference Include="Twilio" Version="7.*" />
+    <PackageReference Include="DotNetEnv" Version="3.*" />
   </ItemGroup>
 
 </Project>

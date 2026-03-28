@@ -43,21 +43,10 @@ public sealed partial class UbiquitiCookieJar : IDisposable
     {
         _logger = logger;
 
-        // Derive persist path: same directory as the SQLite database file.
-        var connStr = configuration.GetConnectionString("Default");
-        if (!string.IsNullOrEmpty(connStr))
-        {
-            // "Data Source=/data/UniFiStoreWatcher.db" → /data/http-cookies.json
-            var match = System.Text.RegularExpressions.Regex.Match(
-                connStr, @"Data\s+Source=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
-                var dbPath = match.Groups[1].Value.Trim();
-                var dir = Path.GetDirectoryName(dbPath);
-                if (!string.IsNullOrEmpty(dir))
-                    _persistPath = Path.Combine(dir, "http-cookies.json");
-            }
-        }
+        // Explicit persist path from config (e.g. CookieJar__PersistPath=/logs/http-cookies.json).
+        // Set this in .env.Production or compose.yaml. When not configured, persistence is disabled.
+        var configuredPath = configuration["CookieJar:PersistPath"];
+        _persistPath = string.IsNullOrWhiteSpace(configuredPath) ? null : configuredPath;
 
         // Seed known-good store cookies immediately.
         SeedRequired();

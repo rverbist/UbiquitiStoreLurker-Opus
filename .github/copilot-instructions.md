@@ -42,18 +42,17 @@ PollSchedulerService → Channel<PollWorkItem> → PollWorkerService
 | `Http/` | Delegating handlers — must stay in chain for requests to succeed |
 | `Endpoints/` | Minimal API extensions: `MapProductEndpoints`, `MapSettingsEndpoints`, etc. |
 | `Hubs/` | `UniFiStoreWatcherHub` (file: `UbiquitiStoreLurkerHub.cs`) at `/UniFiStoreWatcher-hub` |
-| `Data/` | EF Core + SQLite; auto-migrates on startup; WAL mode via interceptor |
+| `Data/` | EF Core + SQL Server; auto-migrates on startup |
 | `Metrics/` | Prometheus counters/gauges at `/api/metrics` |
 | `Telemetry/` | Single `ActivitySource("UniFiStoreWatcher.Web", "1.0.0")` |
 
-**Two frontend UIs coexist:**
-- **Primary** (Claude dashboard): `wwwroot/claude/index.html` — served at `/`, `/monitor`, `/v2/monitor`
-- **Legacy** (Vue SPA): `wwwroot/index.html` — served at `/v1/monitor`; built by Vite pipeline
+**Single frontend UI:**
+- **Vue SPA**: `wwwroot/index.html` — served as default SPA fallback; built by Vite pipeline
 
 ## Tech Stack
 
 - **.NET 10** (`net10.0`) — cutting edge, pre-release packages expected
-- **SQLite** with WAL mode; EF Core code-first migrations
+- **SQL Server** on `RV-WEBSERVER`; EF Core code-first migrations
 - **Vue 3.5 + Vite 8 + TypeScript** in `ClientApp/`; **Pinia 3**, **vue-router 4.6**, `@microsoft/signalr`
 - **NUnit 4 + NSubstitute 5** in the test project
 - `TreatWarningsAsErrors=true`, `Nullable=enable`, `AnalysisLevel=latest-recommended` — solution-wide
@@ -75,8 +74,8 @@ sealed partial class MyService(ILogger<MyService> logger)
 ### `IStockParser` registration pattern
 Each concrete parser is registered **twice**: once as its concrete type, once as `IStockParser` via a factory delegate. This allows both direct injection and `IEnumerable<IStockParser>` enumeration.
 
-### `DateTimeOffset` in SQLite
-All `DateTimeOffset` properties are stored as `long` (UTC ticks) via a global EF converter applied in `OnModelCreating`. Raw SQL queries against the database will see integer columns, not ISO timestamps.
+### `DateTimeOffset` in SQL Server
+`DateTimeOffset` properties are stored natively as `datetimeoffset(7)` — no custom EF converter is applied.
 
 ### `SubscriptionType` is a `[Flags]` enum
 Use `.HasFlag(...)` comparisons. Setting `SubscribedEvents = 0` means no notifications ever fire.
@@ -99,13 +98,13 @@ Tests mirror production namespaces: `Api/`, `Http/`, `Hubs/`, `Parsing/`, `Polli
 ### Integration tests (`TestApiFactory`)
 - Inherits `WebApplicationFactory<Program>`
 - **Override `CreateHost`, not `ConfigureWebHost`** — `Program.cs` calls `MigrateAsync()` before `ConfigureWebHost` hooks fire; the override must intercept `DeferredHostBuilder`
-- Uses a named shared in-memory SQLite connection (`Mode=Memory;Cache=Shared`) kept alive by `_keepAliveConnection`
+- Sets `ConnectionStrings:UniFiStoreWatch-db` to an `InMemory:<guid>` value so `Program.cs` switches to `UseInMemoryDatabase` and calls `EnsureCreatedAsync` instead of `MigrateAsync`
 - `[OneTimeSetUp]` / `[OneTimeTearDown]` — one factory per fixture class
 
 ### Unit tests
 - Construct SUT manually with `NullLogger<T>.Instance`
-- DB-dependent unit tests: `new SqliteConnection("Data Source=:memory:")`, open, `EnsureCreated()` — no migrations in unit tests
-- In-memory SQLite ignores WAL mode; this is expected and safe for tests
+- DB-dependent unit tests: `new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options`, then `EnsureCreated()` — no migrations in unit tests
+- Each test uses a unique database name for full isolation
 
 ### Assertion style
 Use `Assert.Multiple(() => { ... })` for grouping. `NUnit.Framework` is a global implicit using. Test method names use underscores (CA1707 suppressed).
@@ -117,5 +116,6 @@ Use `Assert.Multiple(() => { ... })` for grouping. `NUnit.Framework` is a global
 
 - **Hub file/class name mismatch**: `UbiquitiStoreLurkerHub.cs` contains `class UniFiStoreWatcherHub`. Search by class name, not file name.
 - **`NotificationDispatcher` concurrent writes**: `DispatchAsync` fires `Task.WhenAll` for providers but writes audit logs sequentially to avoid `DbContext` thread-safety violations. Do not parallelize the log-write loop.
-- **WAL via interceptor, not connection string**: `SqliteWalModeInterceptor` runs `PRAGMA journal_mode=WAL` on every connection. In-memory test DBs silently ignore it — this is fine.
+- **Cookie persistence**: `UbiquitiCookieJar` reads `CookieJar:PersistPath` from config. Set `CookieJar__PersistPath=/logs/http-cookies.json` in production (`.env.Production` or compose `environment`). If unset, cookies are re-seeded from scratch on each restart (still functional, slightly slower on first poll).
+- **Connection string key**: Always use `ConnectionStrings:UniFiStoreWatch-db` (env var: `ConnectionStrings__UniFiStoreWatch-db`). Other names (`Default`, `UniFiStoreWatcher-db`) are dead.
 - **Wildcard NuGet versions on Serilog**: `Version="*"` resolves to latest at restore time; combined with .NET 10 preview this can cause unexpected churn.

@@ -1,0 +1,30 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/wwwroot/
+!UniFiStoreWatcher.Web/wwwroot/
+
+# Secrets and local env overrides
+.env
+.env.*
+!.env.Example
+
+# SQLite remnants
+*.db
+*.db-shm
+*.db-wal
+
+# Test project — not needed in image
+UniFiStoreWatcher.Tests/
+
+# Docs and planning artefacts
+docs/
+*.md
+LICENSE
+
+# Build artefacts
+*.user
+*.suo
+.git/

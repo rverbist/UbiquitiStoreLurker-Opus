@@ -176,11 +176,11 @@ public class HttpHandlerTests
             };
             File.WriteAllText(cookieFile, System.Text.Json.JsonSerializer.Serialize(jar));
 
-            // Build a UbiquitiCookieJar pointing at that temp DB path.
+            // Build a UbiquitiCookieJar pointing at that temp cookie file.
             var config = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:Default"] = $"Data Source={Path.Combine(tempPath, "test.db")}"
+                    ["CookieJar:PersistPath"] = cookieFile
                 })
                 .Build();
 
@@ -202,10 +202,8 @@ public class HttpHandlerTests
 
     private static UbiquitiCookieJar CreateJar()
     {
-        // Point at an in-memory path so no files are written during unit tests.
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Default"] = "" })
-            .Build();
+        // No CookieJar:PersistPath configured — cookie jar operates without persistence.
+        var config = new ConfigurationBuilder().Build();
         return new UbiquitiCookieJar(config, NullLogger<UbiquitiCookieJar>.Instance);
     }
 

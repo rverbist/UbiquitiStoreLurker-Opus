@@ -1,0 +1,30 @@
+services:
+  app:
+    image: unifistorewatcher:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.Production
+    volumes:
+      - /opt/docker/apps/unifistorewatcher/logs:/logs
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.unifistorewatcher.rule=Host(`usw.rverbist.io`)"
+      - "traefik.http.routers.unifistorewatcher.entrypoints=websecure"
+      - "traefik.http.routers.unifistorewatcher.tls=true"
+      - "traefik.http.services.unifistorewatcher.loadbalancer.server.port=8080"
+      - "traefik.docker.network=proxy"
+
+networks:
+  proxy:
+    external: true

@@ -5,7 +5,7 @@ using UniFiStoreWatcher.Web.Data;
 namespace UniFiStoreWatcher.Web.Services.Health;
 
 /// <summary>
-/// Verifies the SQLite database is mounted, migrations applied, and accessible.
+/// Verifies the database is reachable, migrations applied, and accessible.
 /// Runs a lightweight scalar query rather than a full schema probe.
 /// </summary>
 public sealed class DatabaseReadinessCheck(IServiceScopeFactory scopeFactory) : IHealthCheck
@@ -18,8 +18,8 @@ public sealed class DatabaseReadinessCheck(IServiceScopeFactory scopeFactory) : 
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
-            // AnyAsync(ct) translates to a cheap existence check that exercises the
-            // full EF Core + SQLite stack without loading any rows.
+            // AnyAsync translates to a cheap existence check that exercises the
+            // full EF Core + database stack without loading any rows.
             await db.AppSettings.AnyAsync(cancellationToken);
             return HealthCheckResult.Healthy("Database reachable");
         }

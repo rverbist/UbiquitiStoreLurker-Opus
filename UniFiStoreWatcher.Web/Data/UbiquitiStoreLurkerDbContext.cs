@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UniFiStoreWatcher.Web.Data.Entities;
 
 namespace UniFiStoreWatcher.Web.Data;
@@ -19,20 +18,6 @@ public class UniFiStoreWatcherDbContext(DbContextOptions<UniFiStoreWatcherDbCont
     {
         base.OnModelCreating(modelBuilder);
 
-        // Apply DateTimeOffset → binary converter globally
-        var dateTimeOffsetConverter = new DateTimeOffsetToBinaryConverter();
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            foreach (var property in entityType.GetProperties())
-            {
-                if (property.ClrType == typeof(DateTimeOffset) ||
-                    property.ClrType == typeof(DateTimeOffset?))
-                {
-                    property.SetValueConverter(dateTimeOffsetConverter);
-                }
-            }
-        }
-
         // Product indexes
         modelBuilder.Entity<Product>(e =>
         {
@@ -48,11 +33,20 @@ public class UniFiStoreWatcherDbContext(DbContextOptions<UniFiStoreWatcherDbCont
             e.HasIndex(c => c.CreatedAtUtc);
         });
 
-        // StockTransition indexes
+        // StockTransition indexes + FK delete behavior.
+        // SQL Server rejects multiple CASCADE paths to the same table.
+        // The chain Products→StockChecks→StockTransitions already has two paths
+        // from Products (direct via ProductId CASCADE, and indirect via StockCheckId CASCADE).
+        // Setting Restrict on StockCheckId breaks the second path while still guaranteeing
+        // that deleting a Product cascades directly through StockTransitions.
         modelBuilder.Entity<StockTransition>(e =>
         {
             e.HasIndex(t => t.ProductId);
             e.HasIndex(t => t.DetectedAtUtc);
+            e.HasOne(t => t.StockCheck)
+             .WithMany()
+             .HasForeignKey(t => t.StockCheckId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         // PushSubscription index

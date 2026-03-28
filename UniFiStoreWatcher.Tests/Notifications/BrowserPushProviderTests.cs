@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,17 +11,14 @@ namespace UniFiStoreWatcher.Tests.Notifications;
 [TestFixture]
 public class BrowserPushProviderTests
 {
-    private SqliteConnection _connection = null!;
     private UniFiStoreWatcherDbContext _db = null!;
     private IServiceScopeFactory _scopeFactory = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _connection = new SqliteConnection("Data Source=:memory:");
-        _connection.Open();
         var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(_connection)
+            .UseInMemoryDatabase($"BrowserPushTests-{Guid.NewGuid():N}")
             .Options;
         _db = new UniFiStoreWatcherDbContext(options);
         _db.Database.EnsureCreated();
@@ -42,8 +38,6 @@ public class BrowserPushProviderTests
     public void TearDown()
     {
         _db.Dispose();
-        _connection.Close();
-        _connection.Dispose();
     }
 
     // CreateAsyncScope() is an extension method backed by CreateScope().

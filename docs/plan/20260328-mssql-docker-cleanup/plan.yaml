@@ -1,0 +1,190 @@
+plan_id: 20260328-mssql-docker-cleanup
+title: MSSQL Docker Cleanup
+created_at: 2026-03-28
+objective: >-
+  Replace SQLite with SQL Server end-to-end, move runtime database configuration
+  to env files, add trusted forwarded-header support for Traefik on the proxy
+  network, and simplify frontend hosting so the built wwwroot/index.html app is
+  the only SPA entrypoint.
+status: proposed
+owner: github-copilot
+scope:
+  in_scope:
+    - Remove SQLite from production code and tests.
+    - Standardize on ConnectionStrings:UniFiStoreWatch-db.
+    - Add .env, .env.Development, .env.Production, and .env.Example.
+    - Add SQL Server support and regenerate EF Core migrations.
+    - Add ForwardedHeaders support for Traefik.
+    - Remove stale Claude shell routing and legacy UI aliases.
+    - Add Dockerfile, .dockerignore, and compose deployment files.
+  out_of_scope:
+    - Removing OpenAPI endpoints.
+    - Removing health or metrics endpoints.
+    - Removing Product, Settings, Notification, Push, or SignalR endpoints.
+    - Adding a SQL Server container for local development tests.
+environment:
+  docker_network:
+    name: proxy
+    subnet: 172.18.0.0/16
+  trusted_proxy_ip: 172.18.2.4
+  host_repo_path: /opt/docker/apps/unifistorewatcher
+  runtime_mounts:
+    - host: /opt/docker/apps/unifistorewatcher/logs
+      container: /logs
+  sqlserver:
+    host: RV-WEBSERVER
+    production:
+      database: unifistorewatcher
+      user: unifistorewatcher
+      password: unifistorewatcher
+    development:
+      database: unifistorewatcher-dev
+      user: unifistorewatcher-dev
+      password: unifistorewatcher-dev
+decisions:
+  - Only the legacy UI aliases are removed: /monitor, /v1/monitor, /v2/monitor.
+  - The built app entrypoint remains UniFiStoreWatcher.Web/wwwroot/index.html.
+  - SQL Server is external, so no /data volume is required.
+  - Traefik is trusted by fixed proxy IP rather than a broad trust-all setup.
+  - EF Core InMemory replaces SQLite-backed tests in this migration.
+artifacts:
+  files_to_create:
+    - .env
+    - .env.Development
+    - .env.Production
+    - .env.Example
+    - Dockerfile
+    - .dockerignore
+    - compose.yaml
+  files_to_update:
+    - UniFiStoreWatcher.Web/Program.cs
+    - UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj
+    - UniFiStoreWatcher.Web/Data/UbiquitiStoreLurkerDbContext.cs
+    - UniFiStoreWatcher.Web/Http/UbiquitiCookieJar.cs
+    - UniFiStoreWatcher.Web/Services/Health/DatabaseReadinessCheck.cs
+    - UniFiStoreWatcher.Web/appsettings.json
+    - UniFiStoreWatcher.Web/appsettings.Development.json
+    - UniFiStoreWatcher.Tests/UniFiStoreWatcher.Tests.csproj
+    - UniFiStoreWatcher.Tests/TestApiFactory.cs
+    - UniFiStoreWatcher.Tests/Api/HealthEndpointTests.cs
+    - UniFiStoreWatcher.Tests/Data/DataModelTests.cs
+    - UniFiStoreWatcher.Tests/Notifications/BrowserPushProviderTests.cs
+    - UniFiStoreWatcher.Tests/Notifications/NotificationDispatcherTests.cs
+    - UniFiStoreWatcher.Tests/Polling/PollSchedulerServiceTests.cs
+    - .gitignore
+    - .github/copilot-instructions.md
+  files_to_delete:
+    - UniFiStoreWatcher.Web/Data/SqliteWalModeInterceptor.cs
+    - UniFiStoreWatcher.Web/Data/DateTimeOffsetToBinaryConverter.cs
+    - UniFiStoreWatcher.Web/Data/Migrations/*
+phases:
+  - id: phase-1
+    name: Configuration and secrets
+    outcome: App settings no longer store DB secrets; env files define runtime configuration.
+    tasks:
+      - id: p1-t1
+        title: Remove ConnectionStrings from appsettings files
+        status: pending
+      - id: p1-t2
+        title: Create env files and example template
+        status: pending
+      - id: p1-t3
+        title: Ignore non-example env files in git
+        status: pending
+  - id: phase-2
+    name: EF provider migration
+    outcome: SQL Server replaces SQLite in runtime and tests.
+    tasks:
+      - id: p2-t1
+        title: Swap EF packages to SqlServer and InMemory
+        status: pending
+      - id: p2-t2
+        title: Remove SQLite-only code and migration artifacts
+        status: pending
+      - id: p2-t3
+        title: Generate fresh SQL Server migration
+        status: pending
+  - id: phase-3
+    name: Runtime pipeline cleanup
+    outcome: Reverse-proxy support works and the stale frontend shell is removed.
+    tasks:
+      - id: p3-t1
+        title: Update Program.cs for SqlServer and InMemory startup
+        status: pending
+      - id: p3-t2
+        title: Add ForwardedHeaders with trusted proxy IP
+        status: pending
+      - id: p3-t3
+        title: Remove stale Claude shell routing and legacy aliases
+        status: pending
+      - id: p3-t4
+        title: Keep existing API, metrics, health, and hub endpoints intact
+        status: pending
+  - id: phase-4
+    name: Secondary cleanup
+    outcome: Remaining SQLite assumptions are removed from helpers and docs.
+    tasks:
+      - id: p4-t1
+        title: Move cookie-jar persistence off DB-derived SQLite path logic
+        status: pending
+      - id: p4-t2
+        title: Make database readiness wording provider-neutral
+        status: pending
+      - id: p4-t3
+        title: Update repository instructions from SQLite to SQL Server
+        status: pending
+  - id: phase-5
+    name: Test migration
+    outcome: Tests no longer depend on Microsoft.Data.Sqlite or UseSqlite.
+    tasks:
+      - id: p5-t1
+        title: Replace TestApiFactory SQLite setup with InMemory setup
+        status: pending
+      - id: p5-t2
+        title: Replace SQLite-backed API and unit tests
+        status: pending
+      - id: p5-t3
+        title: Normalize test connection-string keys
+        status: pending
+  - id: phase-6
+    name: Docker deployment artifacts
+    outcome: The app can be built and deployed behind Traefik on Proxmox.
+    tasks:
+      - id: p6-t1
+        title: Create Dockerfile and .dockerignore
+        status: pending
+      - id: p6-t2
+        title: Create compose file for proxy network deployment
+        status: pending
+      - id: p6-t3
+        title: Wire env_file and /logs mount only
+        status: pending
+  - id: phase-7
+    name: Verification
+    outcome: Build, test, container, and routing validation complete.
+    tasks:
+      - id: p7-t1
+        title: Build solution and confirm SQLite references are removed
+        status: pending
+      - id: p7-t2
+        title: Regenerate and inspect SQL Server migration
+        status: pending
+      - id: p7-t3
+        title: Run test suite without SQLite provider
+        status: pending
+      - id: p7-t4
+        title: Build and smoke-test Docker image and compose setup
+        status: pending
+verification:
+  - dotnet build UniFiStoreWatcher.slnx
+  - dotnet ef migrations add InitialCreate --project UniFiStoreWatcher.Web --startup-project UniFiStoreWatcher.Web
+  - dotnet test
+  - Search for claude/index.html, /monitor, /v1/monitor, and /v2/monitor in runtime code
+  - docker build -t unifistorewatcher .
+  - docker compose up -d
+  - Validate /api/health/live and / behind Traefik
+risks:
+  - EF Core InMemory is less relationally faithful than SQL Server.
+  - Cookie persistence path must be made explicit because the DB is no longer file-backed.
+  - Fresh SQL Server migrations may surface provider-specific model differences.
+next_step: Execute the plan by applying the provider migration, route cleanup, env-file setup, and Docker artifacts in the repository.

@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,12 +11,10 @@ namespace UniFiStoreWatcher.Tests.Notifications;
 [TestFixture]
 public class NotificationDispatcherTests
 {
-    // Keeps a SqliteConnection open for the test lifetime so the in-memory DB persists
-    // between EF Core operations (EF closes/reopens the connection per query by default).
-    private static UniFiStoreWatcherDbContext CreateDb(SqliteConnection conn)
+    private static UniFiStoreWatcherDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(conn)
+            .UseInMemoryDatabase($"NotificationDispatcher-{Guid.NewGuid():N}")
             .Options;
         var db = new UniFiStoreWatcherDbContext(options);
         db.Database.EnsureCreated();
@@ -39,9 +36,9 @@ public class NotificationDispatcherTests
         return scopeFactory;
     }
 
-    // EF Core 10 enforces SQLite FK constraints. Seed the full object graph so
-    // NotificationLog.StockTransitionId and NotificationLog.NotificationConfigId
-    // both reference real rows (NotificationConfigs come from EnsureCreated seed data).
+    // Seed a complete object graph so NotificationLog FK references are satisfied.
+    // EF InMemory does not enforce FK constraints, but seeding correctly keeps
+    // tests honest about the real data shape.
     private static async Task<(Product Product, StockTransition Transition)> SeedTransitionAsync(
         UniFiStoreWatcherDbContext db)
     {
@@ -76,9 +73,7 @@ public class NotificationDispatcherTests
     [Test]
     public async Task DispatchAsync_CallsAllEnabledProviders()
     {
-        using var conn = new SqliteConnection("Data Source=:memory:");
-        conn.Open();
-        await using var db = CreateDb(conn);
+        await using var db = CreateDb();
 
         // BrowserPush (Id=1) is already enabled by seed; enable Email (Id=2) too
         var config2 = await db.NotificationConfigs.FindAsync(2);
@@ -111,9 +106,7 @@ public class NotificationDispatcherTests
     [Test]
     public async Task DispatchAsync_DoesNotCallDisabledProviders()
     {
-        using var conn = new SqliteConnection("Data Source=:memory:");
-        conn.Open();
-        await using var db = CreateDb(conn);
+        await using var db = CreateDb();
 
         // Disable BrowserPush (Id=1) so all configs are disabled
         var config1 = await db.NotificationConfigs.FindAsync(1);
@@ -140,9 +133,7 @@ public class NotificationDispatcherTests
     [Test]
     public async Task DispatchAsync_ContinuesDispatch_WhenOneProviderFails()
     {
-        using var conn = new SqliteConnection("Data Source=:memory:");
-        conn.Open();
-        await using var db = CreateDb(conn);
+        await using var db = CreateDb();
 
         // Enable BrowserPush (Id=1, already enabled) and Email (Id=2)
         var config2 = await db.NotificationConfigs.FindAsync(2);

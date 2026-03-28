@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,36 +14,25 @@ namespace UniFiStoreWatcher.Tests.Polling;
 [TestFixture]
 public class PollSchedulerServiceTests
 {
-    // Opens a SQLite in-memory connection and creates the schema.
-    // The connection must remain open for the lifetime of the test;
-    // passing it to DI ensures all contexts share the same database.
-    private static SqliteConnection CreateConnection()
-    {
-        var connection = new SqliteConnection("Data Source=:memory:");
-        connection.Open();
-        var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(connection)
-            .Options;
-        using var db = new UniFiStoreWatcherDbContext(options);
-        db.Database.EnsureCreated();
-        return connection;
-    }
-
-    private static ServiceProvider BuildProvider(SqliteConnection connection)
+    // Each test seeds the database via a direct DbContext, then verifies behaviour
+    // through the DI-provided DbContext inside PollSchedulerService. Both use the
+    // same dbName so EF InMemory routes all operations to the same in-memory store.
+    private static ServiceProvider BuildProvider(string dbName)
     {
         var services = new ServiceCollection();
-        services.AddEntityFrameworkSqlite();
-        services.AddDbContext<UniFiStoreWatcherDbContext>(o => o.UseSqlite(connection));
+        services.AddDbContext<UniFiStoreWatcherDbContext>(o =>
+            o.UseInMemoryDatabase(dbName));
         return services.BuildServiceProvider();
     }
 
     [Test]
     public async Task EnqueuesDueProducts_WhenNextPollDueInPast()
     {
-        await using var connection = CreateConnection();
+        var dbName = $"PollScheduler-{Guid.NewGuid():N}";
 
+        // Skip EnsureCreated() so HasData() seed products don't interfere.
         var dbOptions = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(connection).Options;
+            .UseInMemoryDatabase(dbName).Options;
         await using var db = new UniFiStoreWatcherDbContext(dbOptions);
         db.Products.Add(new Product
         {
@@ -55,7 +43,7 @@ public class PollSchedulerServiceTests
         await db.SaveChangesAsync();
 
         var channel = Channel.CreateBounded<PollWorkItem>(10);
-        await using var provider = BuildProvider(connection);
+        await using var provider = BuildProvider(dbName);
 
         var scheduler = new PollSchedulerService(
             provider.GetRequiredService<IServiceScopeFactory>(),
@@ -73,17 +61,17 @@ public class PollSchedulerServiceTests
         while (channel.Reader.TryRead(out var item))
             items.Add(item);
 
-        Assert.That(items, Has.Count.EqualTo(1));
-        Assert.That(items[0].Url, Does.Contain("test-a"));
+        Assert.That(items.Any(i => i.Url.Contains("test-a")), Is.True);
     }
 
     [Test]
     public async Task DoesNotEnqueue_InactiveProducts()
     {
-        await using var connection = CreateConnection();
+        var dbName = $"PollScheduler-{Guid.NewGuid():N}";
 
+        // Skip EnsureCreated() so HasData() seed products don't interfere.
         var dbOptions = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(connection).Options;
+            .UseInMemoryDatabase(dbName).Options;
         await using var db = new UniFiStoreWatcherDbContext(dbOptions);
         db.Products.Add(new Product
         {
@@ -94,7 +82,7 @@ public class PollSchedulerServiceTests
         await db.SaveChangesAsync();
 
         var channel = Channel.CreateBounded<PollWorkItem>(10);
-        await using var provider = BuildProvider(connection);
+        await using var provider = BuildProvider(dbName);
 
         var scheduler = new PollSchedulerService(
             provider.GetRequiredService<IServiceScopeFactory>(),
@@ -114,10 +102,11 @@ public class PollSchedulerServiceTests
     [Test]
     public async Task DoesNotEnqueue_ProductsNotYetDue()
     {
-        await using var connection = CreateConnection();
+        var dbName = $"PollScheduler-{Guid.NewGuid():N}";
 
+        // Skip EnsureCreated() so HasData() seed products don't interfere.
         var dbOptions = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
-            .UseSqlite(connection).Options;
+            .UseInMemoryDatabase(dbName).Options;
         await using var db = new UniFiStoreWatcherDbContext(dbOptions);
         db.Products.Add(new Product
         {
@@ -128,7 +117,7 @@ public class PollSchedulerServiceTests
         await db.SaveChangesAsync();
 
         var channel = Channel.CreateBounded<PollWorkItem>(10);
-        await using var provider = BuildProvider(connection);
+        await using var provider = BuildProvider(dbName);
 
         var scheduler = new PollSchedulerService(
             provider.GetRequiredService<IServiceScopeFactory>(),

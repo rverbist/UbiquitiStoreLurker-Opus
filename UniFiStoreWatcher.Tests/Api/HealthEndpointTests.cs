@@ -1,7 +1,5 @@
 using System.Net;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -34,7 +32,7 @@ public class HealthEndpointTests
     [Test]
     public async Task HealthReady_Returns200_WhenDatabaseAccessible()
     {
-        // Default TestApiFactory uses in-memory SQLite with migrations applied.
+        // TestApiFactory uses EF InMemory with EnsureCreated applied.
         // PollSchedulerService starts and marks the readiness indicator after its
         // first scan loop (which finds no products and completes immediately).
         using var factory = new TestApiFactory();
@@ -54,20 +52,17 @@ public class HealthEndpointTests
         // Use a standalone WebApplicationFactory (not TestApiFactory) so we can
         // override ConfigureWebHost to replace the "database" health check with a
         // stub that always returns Unhealthy — without breaking app startup by
-        // providing a valid in-memory DB for MigrateAsync while reporting the check
-        // as failed to the health endpoint.
-        var dbName = $"health-test-{Guid.NewGuid():N}";
-        var connStr = $"Data Source={dbName};Mode=Memory;Cache=Shared";
-        using var keepAlive = new SqliteConnection(connStr);
-        keepAlive.Open();
+        // providing a valid InMemory DB for EnsureCreatedAsync while reporting the
+        // check as failed to the health endpoint.
+        var dbName = $"InMemory:health-test-{Guid.NewGuid():N}";
 
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.ConfigureAppConfiguration(config =>
+                builder.ConfigureAppConfiguration((_, config) =>
                     config.AddInMemoryCollection(new Dictionary<string, string?>
                     {
-                        ["ConnectionStrings:UniFiStoreWatcher-db"] = connStr,
+                        ["ConnectionStrings:UniFiStoreWatch-db"] = dbName,
                     }));
 
                 builder.ConfigureServices(services =>
