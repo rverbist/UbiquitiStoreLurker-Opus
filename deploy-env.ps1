@@ -24,11 +24,11 @@ function Copy-ToRemote {
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [ValidateNotNullOrEmpty()]
         [string]$Source,
 
-        [Parameter()]
+        [Parameter(Position = 1)]
         [string]$Destination
     )
 
@@ -41,22 +41,62 @@ function Copy-ToRemote {
         $resolvedDestination = if ($Destination) { $Destination } else { "$remoteBase/$(Split-Path -Leaf $Source)" }
 
         if ($PSCmdlet.ShouldProcess($resolvedDestination, "Copy '$Source'")) {
-            Write-Verbose "Copying '$Source' -> '$resolvedDestination'"
+            Write-Verbose "scp '$Source' '$resolvedDestination'"
             scp $Source $resolvedDestination
+            if ($LASTEXITCODE -ne 0) {
+                $PSCmdlet.ThrowTerminatingError(
+                    [System.Management.Automation.ErrorRecord]::new(
+                        [System.Exception]::new("scp failed (exit code $LASTEXITCODE): $Source -> $resolvedDestination"),
+                        'ScpFailed',
+                        [System.Management.Automation.ErrorCategory]::ConnectionError,
+                        $Source
+                    )
+                )
+            }
         }
     }
 }
 
-$remoteBase = "${RemoteHost}:/opt/docker/apps/$AppName"
+function Invoke-OnRemote {
+    <#
+    .SYNOPSIS
+        Runs a command on the remote host inside the app directory via ssh.
+    .PARAMETER Command
+        The shell command to execute remotely.
+    #>
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Command
+    )
 
-$filesToDeploy = @(
-    '.env.Production'
-    '.env'
-    'compose.yaml'
-    'docker-compose.yaml'
-    'Dockerfile'
-)
+    process {
+        $remoteCommand = "cd /opt/docker/apps/$AppName && $Command"
 
-foreach ($file in $filesToDeploy) {
-    Copy-ToRemote -Source $file
+        if ($PSCmdlet.ShouldProcess($RemoteHost, $remoteCommand)) {
+            Write-Verbose "ssh $RemoteHost `"$remoteCommand`""
+            ssh $RemoteHost $remoteCommand
+            if ($LASTEXITCODE -ne 0) {
+                $PSCmdlet.ThrowTerminatingError(
+                    [System.Management.Automation.ErrorRecord]::new(
+                        [System.Exception]::new("Remote command failed (exit code $LASTEXITCODE): $Command"),
+                        'RemoteCommandFailed',
+                        [System.Management.Automation.ErrorCategory]::InvalidResult,
+                        $Command
+                    )
+                )
+            }
+        }
+    }
 }
+
+Copy-ToRemote '.env' -Verbose
+Copy-ToRemote '.env.Production' -Verbose
+
+Invoke-OnRemote 'git pull' -Verbose
+Invoke-OnRemote 'docker compose build' -Verbose
+Invoke-OnRemote 'docker compose down' -Verbose
+Invoke-OnRemote 'docker compose up -d' -Verbose
+
+Invoke-OnRemote 'docker image prune -f' -Verbose
