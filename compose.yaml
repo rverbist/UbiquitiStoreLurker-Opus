@@ -1,5 +1,5 @@
 services:
-  UnifiStoreWatcher:
+  unifistorewatcher:
     container_name: UnifiStoreWatcher
     image: UnifiStoreWatcher:latest
     build:
