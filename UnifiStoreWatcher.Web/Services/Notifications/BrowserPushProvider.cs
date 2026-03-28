@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.Text.Json;
 using Lib.Net.Http.WebPush.Authentication;
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Telemetry;
-using EntityPushSubscription = UniFiStoreWatcher.Web.Data.Entities.PushSubscription;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Telemetry;
+using EntityPushSubscription = UnifiStoreWatcher.Web.Data.Entities.PushSubscription;
 using LibPushSubscription = Lib.Net.Http.WebPush.PushSubscription;
 using LibPushMessage = Lib.Net.Http.WebPush.PushMessage;
 using LibPushServiceClient = Lib.Net.Http.WebPush.PushServiceClient;
@@ -13,7 +13,7 @@ using LibPushMessageUrgency = Lib.Net.Http.WebPush.PushMessageUrgency;
 using LibPushEncryptionKeyName = Lib.Net.Http.WebPush.PushEncryptionKeyName;
 using LibPushServiceClientException = Lib.Net.Http.WebPush.PushServiceClientException;
 
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed partial class BrowserPushProvider(
     IServiceScopeFactory scopeFactory,
@@ -32,11 +32,11 @@ public sealed partial class BrowserPushProvider(
 
     public async Task<NotificationResult> SendAsync(NotificationContext context, CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("notification.send.push", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("notification.send.push", ActivityKind.Internal);
         activity?.SetTag("provider.type", ProviderType);
 
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         var appSettings = await db.AppSettings.FindAsync([1], ct);
         if (appSettings is null || string.IsNullOrEmpty(appSettings.VapidPublicKey) || string.IsNullOrEmpty(appSettings.VapidPrivateKey))
@@ -121,7 +121,7 @@ public sealed partial class BrowserPushProvider(
         if (staleEndpoints.Count > 0)
         {
             await using var cleanupScope = scopeFactory.CreateAsyncScope();
-            var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+            var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
             foreach (var stale in staleEndpoints)
             {
                 var entity = await cleanupDb.PushSubscriptions
@@ -139,7 +139,7 @@ public sealed partial class BrowserPushProvider(
     public async Task<NotificationResult> SendTestAsync(CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         var appSettings = await db.AppSettings.FindAsync([1], ct);
         if (appSettings is null || string.IsNullOrEmpty(appSettings.VapidPublicKey) || string.IsNullOrEmpty(appSettings.VapidPrivateKey))
@@ -207,7 +207,7 @@ public sealed partial class BrowserPushProvider(
         if (staleEndpoints.Count > 0)
         {
             await using var cleanupScope = scopeFactory.CreateAsyncScope();
-            var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+            var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
             foreach (var stale in staleEndpoints)
             {
                 var entity = await cleanupDb.PushSubscriptions

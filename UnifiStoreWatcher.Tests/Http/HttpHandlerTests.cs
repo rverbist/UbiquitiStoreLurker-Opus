@@ -2,10 +2,10 @@ using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using UniFiStoreWatcher.Web.Http;
-using UniFiStoreWatcher.Web.Services.Polling;
+using UnifiStoreWatcher.Web.Http;
+using UnifiStoreWatcher.Web.Services.Polling;
 
-namespace UniFiStoreWatcher.Tests.Http;
+namespace UnifiStoreWatcher.Tests.Http;
 
 /// <summary>
 /// Unit tests for BrowserFingerprintHandler and UbiquitiCookieJar/Handler.
@@ -79,7 +79,7 @@ public class HttpHandlerTests
         var inner = new CapturingHandler(req => { captured = req; return new HttpResponseMessage(HttpStatusCode.OK); });
 
         // Old-style bot user agent that should trigger the fallback.
-        var options = Options.Create(new PollOptions { BrowserUserAgent = "UniFiStoreWatcher/1.0 (+github)" });
+        var options = Options.Create(new PollOptions { BrowserUserAgent = "UnifiStoreWatcher/1.0 (+github)" });
         var handler = new BrowserFingerprintHandler(options) { InnerHandler = inner };
 
         using var client = new HttpClient(handler);
@@ -87,7 +87,7 @@ public class HttpHandlerTests
 
         var ua = captured!.Headers.UserAgent.ToString();
         Assert.That(ua, Does.Contain("Chrome/124"), "Should fall back to Chrome UA");
-        Assert.That(ua, Does.Not.Contain("UniFiStoreWatcher"), "Should not expose bot identity");
+        Assert.That(ua, Does.Not.Contain("UnifiStoreWatcher"), "Should not expose bot identity");
     }
 
     // ──────────────────────────────────────────────────────────────────────────

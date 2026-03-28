@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Http;
+namespace UnifiStoreWatcher.Web.Http;
 
 // LoggerMessage source generation requires a partial class.
 // ReSharper disable once PartialTypeWithSinglePart
@@ -89,7 +89,7 @@ public sealed partial class UbiquitiCookieJar : IDisposable
 
     private void SeedRequired()
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("cookie.refresh", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("cookie.refresh", ActivityKind.Internal);
         activity?.SetTag("cookie.action", "seed");
 
         foreach (var (name, value) in SeedCookies)
@@ -106,7 +106,7 @@ public sealed partial class UbiquitiCookieJar : IDisposable
         if (_persistPath is null || !File.Exists(_persistPath))
             return;
 
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("cookie.refresh", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("cookie.refresh", ActivityKind.Internal);
         activity?.SetTag("cookie.action", "reload");
 
         try
@@ -153,7 +153,7 @@ public sealed partial class UbiquitiCookieJar : IDisposable
     {
         if (_persistPath is null) return;
 
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("cookie.refresh", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("cookie.refresh", ActivityKind.Internal);
         activity?.SetTag("cookie.action", "persist");
 
         await _lock.WaitAsync();

@@ -1,6 +1,6 @@
-using UniFiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Data.Entities;
 
-namespace UniFiStoreWatcher.Web.Hubs;
+namespace UnifiStoreWatcher.Web.Hubs;
 
 // Fired any time a product's stock state changes
 public sealed record StockStatusChanged(

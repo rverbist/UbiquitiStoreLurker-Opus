@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Metrics;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Metrics;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed partial class NotificationDispatcher(
     IEnumerable<INotificationProvider> providers,
@@ -14,10 +14,10 @@ public sealed partial class NotificationDispatcher(
 {
     public async Task DispatchAsync(Product product, StockTransition transition, CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("notification.dispatch", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("notification.dispatch", ActivityKind.Internal);
 
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         var enabledConfigs = await db.NotificationConfigs
             .Where(c => c.IsEnabled)
@@ -77,8 +77,8 @@ public sealed partial class NotificationDispatcher(
         {
             var result = await provider.SendAsync(context, ct);
             sw.Stop();
-            UniFiStoreWatcherMetrics.NotificationLatencySeconds.Observe(sw.Elapsed.TotalSeconds);
-            UniFiStoreWatcherMetrics.NotificationsSentTotal
+            UnifiStoreWatcherMetrics.NotificationLatencySeconds.Observe(sw.Elapsed.TotalSeconds);
+            UnifiStoreWatcherMetrics.NotificationsSentTotal
                 .WithLabels(config.ProviderType, result.Success ? "true" : "false")
                 .Inc();
             return (config, result);
@@ -86,8 +86,8 @@ public sealed partial class NotificationDispatcher(
         catch (Exception ex)
         {
             sw.Stop();
-            UniFiStoreWatcherMetrics.NotificationLatencySeconds.Observe(sw.Elapsed.TotalSeconds);
-            UniFiStoreWatcherMetrics.NotificationsSentTotal
+            UnifiStoreWatcherMetrics.NotificationLatencySeconds.Observe(sw.Elapsed.TotalSeconds);
+            UnifiStoreWatcherMetrics.NotificationsSentTotal
                 .WithLabels(config.ProviderType, "false")
                 .Inc();
             LogProviderException(logger, ex, config.ProviderType);

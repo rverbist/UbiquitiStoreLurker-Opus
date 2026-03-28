@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
-namespace UniFiStoreWatcher.Tests;
+namespace UnifiStoreWatcher.Tests;
 
 /// <summary>
 /// WebApplicationFactory for .NET 10 / Minimal API (WebApplicationBuilder) + EF Core InMemory.

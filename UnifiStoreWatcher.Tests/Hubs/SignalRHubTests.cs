@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Hubs;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Hubs;
 
-namespace UniFiStoreWatcher.Tests.Hubs;
+namespace UnifiStoreWatcher.Tests.Hubs;
 
 [TestFixture]
 public class SignalRHubTests
@@ -26,7 +26,7 @@ public class SignalRHubTests
     public async Task Hub_ConnectsSuccessfully()
     {
         var hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/UniFiStoreWatcher-hub", options =>
+            .WithUrl("http://localhost/UnifiStoreWatcher-hub", options =>
             {
                 options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
             })
@@ -44,7 +44,7 @@ public class SignalRHubTests
     public async Task Hub_ReceivesStockStatusChanged_WhenBroadcast()
     {
         var hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/UniFiStoreWatcher-hub", options =>
+            .WithUrl("http://localhost/UnifiStoreWatcher-hub", options =>
             {
                 options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
             })
@@ -81,7 +81,7 @@ public class SignalRHubTests
     public async Task Hub_ReceivesPollCycleCompleted_WhenBroadcast()
     {
         var hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/UniFiStoreWatcher-hub", options =>
+            .WithUrl("http://localhost/UnifiStoreWatcher-hub", options =>
             {
                 options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
             })

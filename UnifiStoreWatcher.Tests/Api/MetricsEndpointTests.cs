@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace UniFiStoreWatcher.Tests.Api;
+namespace UnifiStoreWatcher.Tests.Api;
 
 [TestFixture]
 public class MetricsEndpointTests
@@ -30,14 +30,14 @@ public class MetricsEndpointTests
     }
 
     [Test]
-    public async Task GetMetrics_ContainsUniFiStoreWatcherMetrics()
+    public async Task GetMetrics_ContainsUnifiStoreWatcherMetrics()
     {
         var response = await _client.GetAsync("/api/metrics");
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.That(body, Does.Contain("UniFiStoreWatcher_checks_total"));
-        Assert.That(body, Does.Contain("UniFiStoreWatcher_active_products"));
-        Assert.That(body, Does.Contain("UniFiStoreWatcher_monitored_products_total"));
+        Assert.That(body, Does.Contain("UnifiStoreWatcher_checks_total"));
+        Assert.That(body, Does.Contain("UnifiStoreWatcher_active_products"));
+        Assert.That(body, Does.Contain("UnifiStoreWatcher_monitored_products_total"));
     }
 
     [Test]

@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Services.Health;
+namespace UnifiStoreWatcher.Web.Services.Health;
 
 /// <summary>
 /// Thread-safe readiness indicator backed by a volatile bool.

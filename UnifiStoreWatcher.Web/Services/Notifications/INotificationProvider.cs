@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public interface INotificationProvider
 {

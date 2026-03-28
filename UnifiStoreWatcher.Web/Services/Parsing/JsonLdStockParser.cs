@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
 using AngleSharp.Dom;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public sealed partial class JsonLdStockParser(ILogger<JsonLdStockParser> logger) : IStockParser
 {
@@ -29,7 +29,7 @@ public sealed partial class JsonLdStockParser(ILogger<JsonLdStockParser> logger)
 
     public Task<StockParseResult> ParseAsync(IDocument document, CancellationToken ct = default)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("parse.jsonld", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("parse.jsonld", ActivityKind.Internal);
 
         var scripts = document.QuerySelectorAll("script[type='application/ld+json']");
 

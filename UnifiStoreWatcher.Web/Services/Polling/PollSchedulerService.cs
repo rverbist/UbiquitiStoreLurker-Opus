@@ -2,11 +2,11 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Services.Health;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Services.Health;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Polling;
+namespace UnifiStoreWatcher.Web.Services.Polling;
 
 public sealed partial class PollSchedulerService(
     IServiceScopeFactory scopeFactory,
@@ -52,7 +52,7 @@ public sealed partial class PollSchedulerService(
     private async Task ApplyStartupStaggerAsync(CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         // Products that have never been polled: PollCount == 0.
         var neverPolled = await db.Products
@@ -77,10 +77,10 @@ public sealed partial class PollSchedulerService(
 
     private async Task EnqueueDueProductsAsync(CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("scheduler.scan", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("scheduler.scan", ActivityKind.Internal);
 
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         var now = DateTimeOffset.UtcNow;
         var dueProducts = await db.Products

@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Telemetry;
 using Twilio;
 using Twilio.Rest.Api.V2010.Account;
 
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed record SmsSettings(string AccountSid, string AuthToken, string FromPhone, string ToPhone);
 
@@ -41,7 +41,7 @@ public sealed partial class SmsProvider(ILogger<SmsProvider> logger) : INotifica
 
     public async Task<NotificationResult> SendAsync(NotificationContext context, CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("notification.send.sms", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("notification.send.sms", ActivityKind.Internal);
         activity?.SetTag("provider.type", ProviderType);
 
         if (!ValidateConfig(context.Config.SettingsJson, out var configError))
@@ -60,7 +60,7 @@ public sealed partial class SmsProvider(ILogger<SmsProvider> logger) : INotifica
             TwilioClient.Init(settings.AccountSid, settings.AuthToken);
 
             var message = await MessageResource.CreateAsync(
-                body: $"[UniFiStoreWatcher] {product.Name ?? product.ProductCode} is now {transition.ToState}! {product.Url}",
+                body: $"[UnifiStoreWatcher] {product.Name ?? product.ProductCode} is now {transition.ToState}! {product.Url}",
                 from: new Twilio.Types.PhoneNumber(settings.FromPhone),
                 to: new Twilio.Types.PhoneNumber(settings.ToPhone));
 

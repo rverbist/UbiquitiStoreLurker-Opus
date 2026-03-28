@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
 
-namespace UniFiStoreWatcher.Tests.Data;
+namespace UnifiStoreWatcher.Tests.Data;
 
 [TestFixture]
 public class DataModelTests
@@ -10,16 +10,16 @@ public class DataModelTests
     private static readonly string[] ExpectedProviderTypes =
         ["BrowserPush", "Email", "Sms", "Teams", "Discord"];
 
-    private UniFiStoreWatcherDbContext _db = null!;
+    private UnifiStoreWatcherDbContext _db = null!;
 
     [SetUp]
     public void Setup()
     {
-        var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
+        var options = new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>()
             .UseInMemoryDatabase($"DataModelTests-{Guid.NewGuid():N}")
             .Options;
 
-        _db = new UniFiStoreWatcherDbContext(options);
+        _db = new UnifiStoreWatcherDbContext(options);
         _db.Database.EnsureCreated();
     }
 

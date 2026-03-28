@@ -1,6 +1,6 @@
 using AngleSharp.Dom;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public interface IStockParser
 {

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data;
 
-namespace UniFiStoreWatcher.Web.Metrics;
+namespace UnifiStoreWatcher.Web.Metrics;
 
 public sealed partial class ProductGaugeUpdater(IServiceScopeFactory scopeFactory, ILogger<ProductGaugeUpdater> logger)
     : BackgroundService
@@ -22,11 +22,11 @@ public sealed partial class ProductGaugeUpdater(IServiceScopeFactory scopeFactor
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
             var total = await db.Products.CountAsync(ct);
             var active = await db.Products.CountAsync(p => p.IsActive, ct);
-            UniFiStoreWatcherMetrics.MonitoredProductsTotal.Set(total);
-            UniFiStoreWatcherMetrics.ActiveProducts.Set(active);
+            UnifiStoreWatcherMetrics.MonitoredProductsTotal.Set(total);
+            UnifiStoreWatcherMetrics.ActiveProducts.Set(active);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

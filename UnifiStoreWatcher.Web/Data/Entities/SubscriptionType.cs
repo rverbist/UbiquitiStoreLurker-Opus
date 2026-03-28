@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Data.Entities;
+namespace UnifiStoreWatcher.Web.Data.Entities;
 
 [Flags]
 public enum SubscriptionType

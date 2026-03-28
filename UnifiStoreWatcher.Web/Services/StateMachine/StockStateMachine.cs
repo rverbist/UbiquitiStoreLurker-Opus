@@ -1,10 +1,10 @@
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services.Parsing;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services.Parsing;
 using System.Diagnostics;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.StateMachine;
+namespace UnifiStoreWatcher.Web.Services.StateMachine;
 
 public sealed record TransitionResult(
     bool StateChanged,
@@ -19,7 +19,7 @@ public sealed partial class StockStateMachine(
         StockParseResult parseResult,
         StockCheck check)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("state.evaluate", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("state.evaluate", ActivityKind.Internal);
 
         var newState = parseResult.State;
 

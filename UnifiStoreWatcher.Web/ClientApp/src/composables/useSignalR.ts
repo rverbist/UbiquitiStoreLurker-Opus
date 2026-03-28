@@ -11,7 +11,7 @@ export function useSignalR(
 
   async function start() {
     connection = new signalR.HubConnectionBuilder()
-      .withUrl("/UniFiStoreWatcher-hub")
+      .withUrl("/UnifiStoreWatcher-hub")
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build();

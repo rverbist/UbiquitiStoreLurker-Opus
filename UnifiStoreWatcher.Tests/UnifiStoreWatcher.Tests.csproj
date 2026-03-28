@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj" />
+    <ProjectReference Include="../UnifiStoreWatcher.Web/UnifiStoreWatcher.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

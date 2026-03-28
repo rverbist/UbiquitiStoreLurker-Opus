@@ -1,6 +1,6 @@
-using UniFiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Data.Entities;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public sealed record StockParseResult(
     StockState State,

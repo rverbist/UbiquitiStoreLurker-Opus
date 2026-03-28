@@ -2773,7 +2773,7 @@
           }
 
           hubConnection = new signalR.HubConnectionBuilder()
-            .withUrl("/UniFiStoreWatcher-hub")
+            .withUrl("/UnifiStoreWatcher-hub")
             .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
             .configureLogging(signalR.LogLevel.Warning)
             .build();

@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using UniFiStoreWatcher.Web.Endpoints;
+using UnifiStoreWatcher.Web.Endpoints;
 
-namespace UniFiStoreWatcher.Tests.Api;
+namespace UnifiStoreWatcher.Tests.Api;
 
 [TestFixture]
 public class ProductEndpointTests

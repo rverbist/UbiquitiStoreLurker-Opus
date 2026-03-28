@@ -5,13 +5,13 @@ WORKDIR /src
 # Restore dependencies first for layer caching
 # Directory.Build.props must be copied first — it defines TargetFramework
 COPY Directory.Build.props .
-COPY UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj UniFiStoreWatcher.Web/
-RUN dotnet restore UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj
+COPY UnifiStoreWatcher.Web/UnifiStoreWatcher.Web.csproj UnifiStoreWatcher.Web/
+RUN dotnet restore UnifiStoreWatcher.Web/UnifiStoreWatcher.Web.csproj
 
 # Copy source and build
-COPY UniFiStoreWatcher.Web/ UniFiStoreWatcher.Web/
-WORKDIR /src/UniFiStoreWatcher.Web
-RUN dotnet publish UniFiStoreWatcher.Web.csproj -c Release -o /app/publish --no-restore
+COPY UnifiStoreWatcher.Web/ UnifiStoreWatcher.Web/
+WORKDIR /src/UnifiStoreWatcher.Web
+RUN dotnet publish UnifiStoreWatcher.Web.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -30,4 +30,4 @@ USER appuser
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "UniFiStoreWatcher.Web.dll"]
+ENTRYPOINT ["dotnet", "UnifiStoreWatcher.Web.dll"]

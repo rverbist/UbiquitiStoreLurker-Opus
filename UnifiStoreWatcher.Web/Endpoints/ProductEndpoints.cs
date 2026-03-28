@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services;
-using UniFiStoreWatcher.Web.Services.Parsing;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services;
+using UnifiStoreWatcher.Web.Services.Parsing;
 
-namespace UniFiStoreWatcher.Web.Endpoints;
+namespace UnifiStoreWatcher.Web.Endpoints;
 
 public static class ProductEndpoints
 {
@@ -47,7 +47,7 @@ public static class ProductEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetAllProducts(UniFiStoreWatcherDbContext db, CancellationToken ct)
+    private static async Task<IResult> GetAllProducts(UnifiStoreWatcherDbContext db, CancellationToken ct)
     {
         var products = await db.Products
             .OrderBy(p => p.Name ?? p.Url)
@@ -57,7 +57,7 @@ public static class ProductEndpoints
         return Results.Ok(products);
     }
 
-    private static async Task<IResult> GetProduct(int id, UniFiStoreWatcherDbContext db, CancellationToken ct)
+    private static async Task<IResult> GetProduct(int id, UnifiStoreWatcherDbContext db, CancellationToken ct)
     {
         var product = await db.Products.FindAsync([id], ct);
         return product is null
@@ -67,7 +67,7 @@ public static class ProductEndpoints
 
     private static async Task<IResult> CreateProduct(
         CreateProductRequest request,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         IHttpClientFactory httpClientFactory,
         ProductInfoExtractor extractor,
         ProductImageService imageService,
@@ -127,7 +127,7 @@ public static class ProductEndpoints
     private static async Task<IResult> UpdateProduct(
         int id,
         UpdateProductRequest request,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         CancellationToken ct)
     {
         var product = await db.Products.FindAsync([id], ct);
@@ -142,7 +142,7 @@ public static class ProductEndpoints
         return Results.Ok(ToDto(product));
     }
 
-    private static async Task<IResult> DeleteProduct(int id, UniFiStoreWatcherDbContext db, CancellationToken ct)
+    private static async Task<IResult> DeleteProduct(int id, UnifiStoreWatcherDbContext db, CancellationToken ct)
     {
         var product = await db.Products.FindAsync([id], ct);
         if (product is null) return Results.Problem(title: "Product not found", statusCode: 404);
@@ -155,7 +155,7 @@ public static class ProductEndpoints
 
     private static async Task<IResult> GetProductHistory(
         int id,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         int page = 1,
         int pageSize = 20,
         CancellationToken ct = default)

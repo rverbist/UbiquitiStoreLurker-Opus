@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 #pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 #pragma warning disable CA1861 // Prefer static readonly fields over constant array arguments
 
-namespace UniFiStoreWatcher.Web.Migrations
+namespace UnifiStoreWatcher.Web.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

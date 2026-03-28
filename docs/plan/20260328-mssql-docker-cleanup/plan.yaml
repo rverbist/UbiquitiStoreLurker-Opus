@@ -43,7 +43,7 @@ environment:
       password: unifistorewatcher-dev
 decisions:
   - Only the legacy UI aliases are removed: /monitor, /v1/monitor, /v2/monitor.
-  - The built app entrypoint remains UniFiStoreWatcher.Web/wwwroot/index.html.
+  - The built app entrypoint remains UnifiStoreWatcher.Web/wwwroot/index.html.
   - SQL Server is external, so no /data volume is required.
   - Traefik is trusted by fixed proxy IP rather than a broad trust-all setup.
   - EF Core InMemory replaces SQLite-backed tests in this migration.
@@ -57,26 +57,26 @@ artifacts:
     - .dockerignore
     - compose.yaml
   files_to_update:
-    - UniFiStoreWatcher.Web/Program.cs
-    - UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj
-    - UniFiStoreWatcher.Web/Data/UbiquitiStoreLurkerDbContext.cs
-    - UniFiStoreWatcher.Web/Http/UbiquitiCookieJar.cs
-    - UniFiStoreWatcher.Web/Services/Health/DatabaseReadinessCheck.cs
-    - UniFiStoreWatcher.Web/appsettings.json
-    - UniFiStoreWatcher.Web/appsettings.Development.json
-    - UniFiStoreWatcher.Tests/UniFiStoreWatcher.Tests.csproj
-    - UniFiStoreWatcher.Tests/TestApiFactory.cs
-    - UniFiStoreWatcher.Tests/Api/HealthEndpointTests.cs
-    - UniFiStoreWatcher.Tests/Data/DataModelTests.cs
-    - UniFiStoreWatcher.Tests/Notifications/BrowserPushProviderTests.cs
-    - UniFiStoreWatcher.Tests/Notifications/NotificationDispatcherTests.cs
-    - UniFiStoreWatcher.Tests/Polling/PollSchedulerServiceTests.cs
+    - UnifiStoreWatcher.Web/Program.cs
+    - UnifiStoreWatcher.Web/UnifiStoreWatcher.Web.csproj
+    - UnifiStoreWatcher.Web/Data/UbiquitiStoreLurkerDbContext.cs
+    - UnifiStoreWatcher.Web/Http/UbiquitiCookieJar.cs
+    - UnifiStoreWatcher.Web/Services/Health/DatabaseReadinessCheck.cs
+    - UnifiStoreWatcher.Web/appsettings.json
+    - UnifiStoreWatcher.Web/appsettings.Development.json
+    - UnifiStoreWatcher.Tests/UnifiStoreWatcher.Tests.csproj
+    - UnifiStoreWatcher.Tests/TestApiFactory.cs
+    - UnifiStoreWatcher.Tests/Api/HealthEndpointTests.cs
+    - UnifiStoreWatcher.Tests/Data/DataModelTests.cs
+    - UnifiStoreWatcher.Tests/Notifications/BrowserPushProviderTests.cs
+    - UnifiStoreWatcher.Tests/Notifications/NotificationDispatcherTests.cs
+    - UnifiStoreWatcher.Tests/Polling/PollSchedulerServiceTests.cs
     - .gitignore
     - .github/copilot-instructions.md
   files_to_delete:
-    - UniFiStoreWatcher.Web/Data/SqliteWalModeInterceptor.cs
-    - UniFiStoreWatcher.Web/Data/DateTimeOffsetToBinaryConverter.cs
-    - UniFiStoreWatcher.Web/Data/Migrations/*
+    - UnifiStoreWatcher.Web/Data/SqliteWalModeInterceptor.cs
+    - UnifiStoreWatcher.Web/Data/DateTimeOffsetToBinaryConverter.cs
+    - UnifiStoreWatcher.Web/Data/Migrations/*
 phases:
   - id: phase-1
     name: Configuration and secrets
@@ -176,8 +176,8 @@ phases:
         title: Build and smoke-test Docker image and compose setup
         status: pending
 verification:
-  - dotnet build UniFiStoreWatcher.slnx
-  - dotnet ef migrations add InitialCreate --project UniFiStoreWatcher.Web --startup-project UniFiStoreWatcher.Web
+  - dotnet build UnifiStoreWatcher.slnx
+  - dotnet ef migrations add InitialCreate --project UnifiStoreWatcher.Web --startup-project UnifiStoreWatcher.Web
   - dotnet test
   - Search for claude/index.html, /monitor, /v1/monitor, and /v2/monitor in runtime code
   - docker build -t unifistorewatcher .

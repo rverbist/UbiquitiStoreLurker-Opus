@@ -2,25 +2,25 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services.Notifications;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services.Notifications;
 
-namespace UniFiStoreWatcher.Tests.Notifications;
+namespace UnifiStoreWatcher.Tests.Notifications;
 
 [TestFixture]
 public class BrowserPushProviderTests
 {
-    private UniFiStoreWatcherDbContext _db = null!;
+    private UnifiStoreWatcherDbContext _db = null!;
     private IServiceScopeFactory _scopeFactory = null!;
 
     [SetUp]
     public void SetUp()
     {
-        var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
+        var options = new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>()
             .UseInMemoryDatabase($"BrowserPushTests-{Guid.NewGuid():N}")
             .Options;
-        _db = new UniFiStoreWatcherDbContext(options);
+        _db = new UnifiStoreWatcherDbContext(options);
         _db.Database.EnsureCreated();
 
         var settings = _db.AppSettings.Find(1);
@@ -42,13 +42,13 @@ public class BrowserPushProviderTests
 
     // CreateAsyncScope() is an extension method backed by CreateScope().
     // Mocking CreateScope() is sufficient for NSubstitute to intercept it.
-    private static IServiceScopeFactory CreateScopeFactory(UniFiStoreWatcherDbContext db)
+    private static IServiceScopeFactory CreateScopeFactory(UnifiStoreWatcherDbContext db)
     {
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
         var scope = Substitute.For<IServiceScope>();
         var svcProvider = Substitute.For<IServiceProvider>();
 
-        svcProvider.GetService(typeof(UniFiStoreWatcherDbContext)).Returns(db);
+        svcProvider.GetService(typeof(UnifiStoreWatcherDbContext)).Returns(db);
         scope.ServiceProvider.Returns(svcProvider);
         scopeFactory.CreateScope().Returns(scope);
 

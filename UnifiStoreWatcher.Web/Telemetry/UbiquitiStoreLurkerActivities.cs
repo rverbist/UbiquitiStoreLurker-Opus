@@ -1,8 +1,8 @@
 using System.Diagnostics;
 
-namespace UniFiStoreWatcher.Web.Telemetry;
+namespace UnifiStoreWatcher.Web.Telemetry;
 
-public static class UniFiStoreWatcherActivities
+public static class UnifiStoreWatcherActivities
 {
-    public static readonly ActivitySource Source = new("UniFiStoreWatcher.Web", "1.0.0");
+    public static readonly ActivitySource Source = new("UnifiStoreWatcher.Web", "1.0.0");
 }

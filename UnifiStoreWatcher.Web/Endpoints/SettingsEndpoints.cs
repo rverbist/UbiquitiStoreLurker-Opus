@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data;
 
-namespace UniFiStoreWatcher.Web.Endpoints;
+namespace UnifiStoreWatcher.Web.Endpoints;
 
 public static class SettingsEndpoints
 {
@@ -22,7 +22,7 @@ public static class SettingsEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetSettings(UniFiStoreWatcherDbContext db, CancellationToken ct)
+    private static async Task<IResult> GetSettings(UnifiStoreWatcherDbContext db, CancellationToken ct)
     {
         var settings = await db.AppSettings.FindAsync([1], ct)
             ?? new Data.Entities.AppSettings();
@@ -41,7 +41,7 @@ public static class SettingsEndpoints
 
     private static async Task<IResult> UpdateSettings(
         UpdateSettingsRequest request,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         CancellationToken ct)
     {
         var settings = await db.AppSettings.FindAsync([1], ct);

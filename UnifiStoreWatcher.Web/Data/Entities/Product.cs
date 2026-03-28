@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace UniFiStoreWatcher.Web.Data.Entities;
+namespace UnifiStoreWatcher.Web.Data.Entities;
 
 public class Product
 {

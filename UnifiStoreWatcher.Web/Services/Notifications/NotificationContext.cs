@@ -1,6 +1,6 @@
-using UniFiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Data.Entities;
 
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed record NotificationContext(
     Product Product,

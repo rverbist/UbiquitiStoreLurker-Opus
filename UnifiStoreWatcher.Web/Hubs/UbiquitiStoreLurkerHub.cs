@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.SignalR;
 
-namespace UniFiStoreWatcher.Web.Hubs;
+namespace UnifiStoreWatcher.Web.Hubs;
 
 /// <summary>
 /// Real-time push channel for stock monitor events.
-/// Clients subscribe by connecting to /UniFiStoreWatcher-hub.
+/// Clients subscribe by connecting to /UnifiStoreWatcher-hub.
 /// </summary>
-public sealed class UniFiStoreWatcherHub : Hub
+public sealed class UnifiStoreWatcherHub : Hub
 {
     // Methods callable by clients
     public async Task JoinGroup(string group) =>

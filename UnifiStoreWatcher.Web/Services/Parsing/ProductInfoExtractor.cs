@@ -2,7 +2,7 @@ using System.Text.Json;
 using AngleSharp;
 using AngleSharp.Dom;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public sealed record ProductInfo(
     string? Name,

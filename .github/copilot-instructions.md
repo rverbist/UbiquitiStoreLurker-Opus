@@ -1,16 +1,16 @@
-# UniFiStoreWatcher — Copilot Instructions
+# UnifiStoreWatcher — Copilot Instructions
 
 ## Build & Test
 
 | Action | Command |
 |--------|---------|
-| Build | `dotnet build UniFiStoreWatcher.slnx` |
-| Run web app | `dotnet run --project UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj` |
+| Build | `dotnet build UnifiStoreWatcher.slnx` |
+| Run web app | `dotnet run --project UnifiStoreWatcher.Web/UnifiStoreWatcher.Web.csproj` |
 | Test | `dotnet test` |
-| Frontend dev | `npm run dev` (from `UniFiStoreWatcher.Web/ClientApp/`) |
+| Frontend dev | `npm run dev` (from `UnifiStoreWatcher.Web/ClientApp/`) |
 | Frontend build | `npm run build` (outputs to `../wwwroot`) |
 
-> **Solution format is `.slnx`** (new experimental format) — not `.sln`. Always reference `UniFiStoreWatcher.slnx` explicitly; tools that glob for `*.sln` will not find it.
+> **Solution format is `.slnx`** (new experimental format) — not `.sln`. Always reference `UnifiStoreWatcher.slnx` explicitly; tools that glob for `*.sln` will not find it.
 
 Default runtime port: **5248**. The Vite dev proxy targets `localhost:5000` — update `vite.config.ts` or `launchSettings.json` if running both simultaneously.
 
@@ -31,7 +31,7 @@ PollSchedulerService → Channel<PollWorkItem> → PollWorkerService
                              NotificationDispatcher + StockHubBroadcaster (SignalR)
 ```
 
-**Key folders under `UniFiStoreWatcher.Web/`:**
+**Key folders under `UnifiStoreWatcher.Web/`:**
 
 | Folder | Purpose |
 |--------|---------|
@@ -41,10 +41,10 @@ PollSchedulerService → Channel<PollWorkItem> → PollWorkerService
 | `Services/Notifications/` | `NotificationDispatcher` fan-out; `BrowserPushProvider`, Email, SMS, Teams, Discord |
 | `Http/` | Delegating handlers — must stay in chain for requests to succeed |
 | `Endpoints/` | Minimal API extensions: `MapProductEndpoints`, `MapSettingsEndpoints`, etc. |
-| `Hubs/` | `UniFiStoreWatcherHub` (file: `UbiquitiStoreLurkerHub.cs`) at `/UniFiStoreWatcher-hub` |
+| `Hubs/` | `UnifiStoreWatcherHub` (file: `UbiquitiStoreLurkerHub.cs`) at `/UnifiStoreWatcher-hub` |
 | `Data/` | EF Core + SQL Server; auto-migrates on startup |
 | `Metrics/` | Prometheus counters/gauges at `/api/metrics` |
-| `Telemetry/` | Single `ActivitySource("UniFiStoreWatcher.Web", "1.0.0")` |
+| `Telemetry/` | Single `ActivitySource("UnifiStoreWatcher.Web", "1.0.0")` |
 
 **Single frontend UI:**
 - **Vue SPA**: `wwwroot/index.html` — served as default SPA fallback; built by Vite pipeline
@@ -103,7 +103,7 @@ Tests mirror production namespaces: `Api/`, `Http/`, `Hubs/`, `Parsing/`, `Polli
 
 ### Unit tests
 - Construct SUT manually with `NullLogger<T>.Instance`
-- DB-dependent unit tests: `new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options`, then `EnsureCreated()` — no migrations in unit tests
+- DB-dependent unit tests: `new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options`, then `EnsureCreated()` — no migrations in unit tests
 - Each test uses a unique database name for full isolation
 
 ### Assertion style
@@ -114,8 +114,8 @@ Use `Assert.Multiple(() => { ... })` for grouping. `NUnit.Framework` is a global
 
 ## Key Pitfalls
 
-- **Hub file/class name mismatch**: `UbiquitiStoreLurkerHub.cs` contains `class UniFiStoreWatcherHub`. Search by class name, not file name.
+- **Hub file/class name mismatch**: `UbiquitiStoreLurkerHub.cs` contains `class UnifiStoreWatcherHub`. Search by class name, not file name.
 - **`NotificationDispatcher` concurrent writes**: `DispatchAsync` fires `Task.WhenAll` for providers but writes audit logs sequentially to avoid `DbContext` thread-safety violations. Do not parallelize the log-write loop.
 - **Cookie persistence**: `UbiquitiCookieJar` reads `CookieJar:PersistPath` from config. Set `CookieJar__PersistPath=/logs/http-cookies.json` in production (`.env.Production` or compose `environment`). If unset, cookies are re-seeded from scratch on each restart (still functional, slightly slower on first poll).
-- **Connection string key**: Always use `ConnectionStrings:UniFiStoreWatch-db` (env var: `ConnectionStrings__UniFiStoreWatch-db`). Other names (`Default`, `UniFiStoreWatcher-db`) are dead.
+- **Connection string key**: Always use `ConnectionStrings:UniFiStoreWatch-db` (env var: `ConnectionStrings__UniFiStoreWatch-db`). Other names (`Default`, `UnifiStoreWatcher-db`) are dead.
 - **Wildcard NuGet versions on Serilog**: `Version="*"` resolves to latest at restore time; combined with .NET 10 preview this can cause unexpected churn.

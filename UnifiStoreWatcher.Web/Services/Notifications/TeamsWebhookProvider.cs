@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed record TeamsSettings(string WebhookUrl);
 
@@ -42,7 +42,7 @@ public sealed partial class TeamsWebhookProvider(
 
     public async Task<NotificationResult> SendAsync(NotificationContext context, CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("notification.send.teams", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("notification.send.teams", ActivityKind.Internal);
         activity?.SetTag("provider.type", ProviderType);
 
         if (!ValidateConfig(context.Config.SettingsJson, out var configError))

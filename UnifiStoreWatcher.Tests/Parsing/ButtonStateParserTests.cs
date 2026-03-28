@@ -1,8 +1,8 @@
 using AngleSharp;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services.Parsing;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services.Parsing;
 
-namespace UniFiStoreWatcher.Tests.Parsing;
+namespace UnifiStoreWatcher.Tests.Parsing;
 
 [TestFixture]
 public class ButtonStateParserTests

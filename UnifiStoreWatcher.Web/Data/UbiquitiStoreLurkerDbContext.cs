@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Data.Entities;
 
-namespace UniFiStoreWatcher.Web.Data;
+namespace UnifiStoreWatcher.Web.Data;
 
-public class UniFiStoreWatcherDbContext(DbContextOptions<UniFiStoreWatcherDbContext> options)
+public class UnifiStoreWatcherDbContext(DbContextOptions<UnifiStoreWatcherDbContext> options)
     : DbContext(options)
 {
     public DbSet<Product> Products => Set<Product>();

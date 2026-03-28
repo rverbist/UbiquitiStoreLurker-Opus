@@ -1,42 +1,42 @@
 using Prometheus;
 
-namespace UniFiStoreWatcher.Web.Metrics;
+namespace UnifiStoreWatcher.Web.Metrics;
 
-public static class UniFiStoreWatcherMetrics
+public static class UnifiStoreWatcherMetrics
 {
     // Counters
     public static readonly Counter StockChecksTotal = Prometheus.Metrics.CreateCounter(
-        "UniFiStoreWatcher_checks_total",
+        "UnifiStoreWatcher_checks_total",
         "Total number of stock check HTTP requests",
         ["result"] // success, error
     );
 
     public static readonly Counter StockTransitionsTotal = Prometheus.Metrics.CreateCounter(
-        "UniFiStoreWatcher_transitions_total",
+        "UnifiStoreWatcher_transitions_total",
         "Total number of stock state transitions",
         ["from_state", "to_state"]
     );
 
     public static readonly Counter NotificationsSentTotal = Prometheus.Metrics.CreateCounter(
-        "UniFiStoreWatcher_notifications_sent_total",
+        "UnifiStoreWatcher_notifications_sent_total",
         "Total number of notifications sent",
         ["provider", "success"]
     );
 
     // Gauges
     public static readonly Gauge ActiveProducts = Prometheus.Metrics.CreateGauge(
-        "UniFiStoreWatcher_active_products",
+        "UnifiStoreWatcher_active_products",
         "Number of currently active (polling) products"
     );
 
     public static readonly Gauge MonitoredProductsTotal = Prometheus.Metrics.CreateGauge(
-        "UniFiStoreWatcher_monitored_products_total",
+        "UnifiStoreWatcher_monitored_products_total",
         "Total number of products (active + paused)"
     );
 
     // Histograms
     public static readonly Histogram PollDurationSeconds = Prometheus.Metrics.CreateHistogram(
-        "UniFiStoreWatcher_poll_duration_seconds",
+        "UnifiStoreWatcher_poll_duration_seconds",
         "Duration of individual product poll HTTP requests in seconds",
         new HistogramConfiguration
         {
@@ -45,7 +45,7 @@ public static class UniFiStoreWatcherMetrics
     );
 
     public static readonly Histogram NotificationLatencySeconds = Prometheus.Metrics.CreateHistogram(
-        "UniFiStoreWatcher_notification_latency_seconds",
+        "UnifiStoreWatcher_notification_latency_seconds",
         "Duration of notification dispatch in seconds",
         new HistogramConfiguration
         {

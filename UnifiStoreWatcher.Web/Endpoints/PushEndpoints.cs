@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Services.Notifications;
-using EntityPushSubscription = UniFiStoreWatcher.Web.Data.Entities.PushSubscription;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Services.Notifications;
+using EntityPushSubscription = UnifiStoreWatcher.Web.Data.Entities.PushSubscription;
 
-namespace UniFiStoreWatcher.Web.Endpoints;
+namespace UnifiStoreWatcher.Web.Endpoints;
 
 public static class PushEndpoints
 {
@@ -33,7 +33,7 @@ public static class PushEndpoints
 
     private static async Task<IResult> Subscribe(
         PushSubscribeRequest request,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         CancellationToken ct)
     {
         if (await db.PushSubscriptions.AnyAsync(s => s.Endpoint == request.Endpoint, ct))
@@ -51,7 +51,7 @@ public static class PushEndpoints
 
     private static async Task<IResult> Unsubscribe(
         [Microsoft.AspNetCore.Mvc.FromBody] PushSubscribeRequest request,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         CancellationToken ct)
     {
         var sub = await db.PushSubscriptions
@@ -66,7 +66,7 @@ public static class PushEndpoints
 
     private static async Task<IResult> SendTest(
         BrowserPushProvider pushProvider,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         CancellationToken ct)
     {
         var count = await db.PushSubscriptions.CountAsync(ct);

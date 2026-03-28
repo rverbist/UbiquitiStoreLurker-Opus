@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Http;
+namespace UnifiStoreWatcher.Web.Http;
 
 /// <summary>
 /// DelegatingHandler that injects and captures cookies for the Ubiquiti EU store.

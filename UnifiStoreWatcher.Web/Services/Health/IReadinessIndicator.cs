@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Services.Health;
+namespace UnifiStoreWatcher.Web.Services.Health;
 
 /// <summary>
 /// Tracks whether the application is ready to serve traffic.

@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services.Parsing;
-using UniFiStoreWatcher.Web.Services.StateMachine;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services.Parsing;
+using UnifiStoreWatcher.Web.Services.StateMachine;
 
-namespace UniFiStoreWatcher.Tests.StateMachine;
+namespace UnifiStoreWatcher.Tests.StateMachine;
 
 [TestFixture]
 public class StockStateMachineTests

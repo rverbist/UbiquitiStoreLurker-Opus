@@ -1,9 +1,9 @@
 using AngleSharp.Dom;
 using System.Diagnostics;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public sealed class ButtonStateParser : IStockParser
 {
@@ -22,7 +22,7 @@ public sealed class ButtonStateParser : IStockParser
 
     public Task<StockParseResult> ParseAsync(IDocument document, CancellationToken ct = default)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("parse.button", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("parse.button", ActivityKind.Internal);
 
         var buttons = document.QuerySelectorAll("button, [role='button'], input[type='submit']");
 

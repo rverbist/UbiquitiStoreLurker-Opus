@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using UniFiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Data.Entities;
 
-namespace UniFiStoreWatcher.Web.Endpoints;
+namespace UnifiStoreWatcher.Web.Endpoints;
 
 // Products
 public sealed record ProductDto(

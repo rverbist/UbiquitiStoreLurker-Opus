@@ -4,7 +4,7 @@
 **/.vs/
 **/.vscode/
 **/wwwroot/
-!UniFiStoreWatcher.Web/wwwroot/
+!UnifiStoreWatcher.Web/wwwroot/
 
 # Secrets and local env overrides
 .env
@@ -17,7 +17,7 @@
 *.db-wal
 
 # Test project — not needed in image
-UniFiStoreWatcher.Tests/
+UnifiStoreWatcher.Tests/
 
 # Docs and planning artefacts
 docs/

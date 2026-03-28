@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace UniFiStoreWatcher.Web.Services.Health;
+namespace UnifiStoreWatcher.Web.Services.Health;
 
 /// <summary>
 /// Returns Healthy once <see cref="IReadinessIndicator.MarkReady"/> has been called by

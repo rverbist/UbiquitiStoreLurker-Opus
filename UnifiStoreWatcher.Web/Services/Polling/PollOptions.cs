@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Services.Polling;
+namespace UnifiStoreWatcher.Web.Services.Polling;
 
 public sealed class PollOptions
 {
@@ -11,7 +11,7 @@ public sealed class PollOptions
 
     /// <summary>
     /// Full User-Agent string sent with every poll request.
-    /// If blank or prefixed with "UniFiStoreWatcher/", the handler falls back to the
+    /// If blank or prefixed with "UnifiStoreWatcher/", the handler falls back to the
     /// Chrome 124 default so the poller is never identifiable as a bot.
     /// </summary>
     public string BrowserUserAgent { get; set; } =

@@ -2,34 +2,34 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services.Notifications;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services.Notifications;
 
-namespace UniFiStoreWatcher.Tests.Notifications;
+namespace UnifiStoreWatcher.Tests.Notifications;
 
 [TestFixture]
 public class NotificationDispatcherTests
 {
-    private static UniFiStoreWatcherDbContext CreateDb()
+    private static UnifiStoreWatcherDbContext CreateDb()
     {
-        var options = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
+        var options = new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>()
             .UseInMemoryDatabase($"NotificationDispatcher-{Guid.NewGuid():N}")
             .Options;
-        var db = new UniFiStoreWatcherDbContext(options);
+        var db = new UnifiStoreWatcherDbContext(options);
         db.Database.EnsureCreated();
         return db;
     }
 
     // CreateAsyncScope() is an extension method that calls CreateScope() internally.
     // We mock CreateScope() so the extension method picks up our mock scope.
-    private static IServiceScopeFactory CreateScopeFactory(UniFiStoreWatcherDbContext db)
+    private static IServiceScopeFactory CreateScopeFactory(UnifiStoreWatcherDbContext db)
     {
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
         var scope = Substitute.For<IServiceScope>();
         var svcProvider = Substitute.For<IServiceProvider>();
 
-        svcProvider.GetService(typeof(UniFiStoreWatcherDbContext)).Returns(db);
+        svcProvider.GetService(typeof(UnifiStoreWatcherDbContext)).Returns(db);
         scope.ServiceProvider.Returns(svcProvider);
         scopeFactory.CreateScope().Returns(scope);
 
@@ -40,7 +40,7 @@ public class NotificationDispatcherTests
     // EF InMemory does not enforce FK constraints, but seeding correctly keeps
     // tests honest about the real data shape.
     private static async Task<(Product Product, StockTransition Transition)> SeedTransitionAsync(
-        UniFiStoreWatcherDbContext db)
+        UnifiStoreWatcherDbContext db)
     {
         var product = new Product { Url = "https://example.com", ProductCode = "TEST-001" };
         db.Products.Add(product);

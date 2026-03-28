@@ -1,10 +1,10 @@
 using AngleSharp;
 using AngleSharp.Dom;
 using System.Diagnostics;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public sealed partial class CompositeStockParser(
     IEnumerable<IStockParser> parsers,
@@ -23,7 +23,7 @@ public sealed partial class CompositeStockParser(
 
     public async Task<StockParseResult> ParseDocumentAsync(IDocument document, CancellationToken ct = default)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("parse.composite", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("parse.composite", ActivityKind.Internal);
 
         foreach (var parser in parsers)
         {

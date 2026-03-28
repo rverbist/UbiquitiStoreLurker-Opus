@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed record NotificationResult(bool Success, string? ErrorMessage = null)
 {

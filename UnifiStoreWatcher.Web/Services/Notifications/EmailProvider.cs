@@ -3,9 +3,9 @@ using System.Text.Json;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Notifications;
+namespace UnifiStoreWatcher.Web.Services.Notifications;
 
 public sealed record EmailSettings(
     string Host,
@@ -49,7 +49,7 @@ public sealed partial class EmailProvider(ILogger<EmailProvider> logger) : INoti
 
     public async Task<NotificationResult> SendAsync(NotificationContext context, CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("notification.send.email", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("notification.send.email", ActivityKind.Internal);
         activity?.SetTag("provider.type", ProviderType);
 
         if (!ValidateConfig(context.Config.SettingsJson, out var configError))
@@ -68,7 +68,7 @@ public sealed partial class EmailProvider(ILogger<EmailProvider> logger) : INoti
             var message = new MimeMessage();
             message.From.Add(MailboxAddress.Parse(settings.FromAddress));
             message.To.Add(MailboxAddress.Parse(settings.ToAddress));
-            message.Subject = $"[UniFiStoreWatcher] {product.Name ?? product.Url} is now {transition.ToState}";
+            message.Subject = $"[UnifiStoreWatcher] {product.Name ?? product.Url} is now {transition.ToState}";
             message.Body = new TextPart("plain")
             {
                 Text = $"""

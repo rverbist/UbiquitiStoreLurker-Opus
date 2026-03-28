@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="UniFiStoreWatcher.Web/UniFiStoreWatcher.Web.csproj" />
-  <Project Path="UniFiStoreWatcher.Tests/UniFiStoreWatcher.Tests.csproj" />
+  <Project Path="UnifiStoreWatcher.Web/UnifiStoreWatcher.Web.csproj" />
+  <Project Path="UnifiStoreWatcher.Tests/UnifiStoreWatcher.Tests.csproj" />
 </Solution>

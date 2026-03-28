@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
-using UniFiStoreWatcher.Web.Services.Polling;
+using UnifiStoreWatcher.Web.Services.Polling;
 
-namespace UniFiStoreWatcher.Web.Http;
+namespace UnifiStoreWatcher.Web.Http;
 
 /// <summary>
 /// Sets browser-realistic request headers indistinguishable from Chrome 124 on Windows 10.
@@ -21,7 +21,7 @@ public sealed class BrowserFingerprintHandler(IOptions<PollOptions> options) : D
 
         // Fall back to Chrome UA if blank or still set to the old bot-identifiable default.
         if (string.IsNullOrWhiteSpace(ua) ||
-            ua.StartsWith("UniFiStoreWatcher/", StringComparison.OrdinalIgnoreCase))
+            ua.StartsWith("UnifiStoreWatcher/", StringComparison.OrdinalIgnoreCase))
         {
             ua = DefaultUserAgent;
         }

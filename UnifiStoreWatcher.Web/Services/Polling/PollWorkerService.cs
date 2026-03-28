@@ -3,17 +3,17 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Hubs;
-using UniFiStoreWatcher.Web.Metrics;
-using UniFiStoreWatcher.Web.Services;
-using UniFiStoreWatcher.Web.Services.Parsing;
-using UniFiStoreWatcher.Web.Services.Notifications;
-using UniFiStoreWatcher.Web.Services.StateMachine;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Hubs;
+using UnifiStoreWatcher.Web.Metrics;
+using UnifiStoreWatcher.Web.Services;
+using UnifiStoreWatcher.Web.Services.Parsing;
+using UnifiStoreWatcher.Web.Services.Notifications;
+using UnifiStoreWatcher.Web.Services.StateMachine;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Polling;
+namespace UnifiStoreWatcher.Web.Services.Polling;
 
 public sealed partial class PollWorkerService(
     IServiceScopeFactory scopeFactory,
@@ -36,7 +36,7 @@ public sealed partial class PollWorkerService(
 
     private async Task ProcessItemAsync(PollWorkItem item, CancellationToken ct)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("poll.execute", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("poll.execute", ActivityKind.Internal);
         activity?.SetTag("product.id", item.ProductId);
         activity?.SetTag("product.url", item.Url);
 
@@ -59,8 +59,8 @@ public sealed partial class PollWorkerService(
                 ? await response.Content.ReadAsStringAsync(ct)
                 : null;
 
-            UniFiStoreWatcherMetrics.StockChecksTotal.WithLabels("success").Inc();
-            UniFiStoreWatcherMetrics.PollDurationSeconds.Observe(sw.Elapsed.TotalSeconds);
+            UnifiStoreWatcherMetrics.StockChecksTotal.WithLabels("success").Inc();
+            UnifiStoreWatcherMetrics.PollDurationSeconds.Observe(sw.Elapsed.TotalSeconds);
 
             await PersistCheckAndEvaluateAsync(item, statusCode, (int)sw.ElapsedMilliseconds, null, html, ct);
 
@@ -80,7 +80,7 @@ public sealed partial class PollWorkerService(
 
             LogPollFailed(logger, ex, item.ProductId, item.Url, sw.ElapsedMilliseconds);
 
-            UniFiStoreWatcherMetrics.StockChecksTotal.WithLabels("error").Inc();
+            UnifiStoreWatcherMetrics.StockChecksTotal.WithLabels("error").Inc();
 
             await PersistCheckAsync(item, statusCode, (int)sw.ElapsedMilliseconds, ex.Message, ct);
             await IncrementErrorCountAsync(item.ProductId, ct);
@@ -111,7 +111,7 @@ public sealed partial class PollWorkerService(
         CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
         var parser = scope.ServiceProvider.GetRequiredService<CompositeStockParser>();
         var stateMachine = scope.ServiceProvider.GetRequiredService<StockStateMachine>();
 
@@ -180,7 +180,7 @@ public sealed partial class PollWorkerService(
                     product.CurrentState = transitionResult.Transition.ToState;
                     product.LastStateChangeAtUtc = DateTimeOffset.UtcNow;
                     db.StockTransitions.Add(transitionResult.Transition);
-                    UniFiStoreWatcherMetrics.StockTransitionsTotal
+                    UnifiStoreWatcherMetrics.StockTransitionsTotal
                         .WithLabels(transitionResult.Transition.FromState.ToString(), transitionResult.Transition.ToState.ToString())
                         .Inc();
                 }
@@ -225,7 +225,7 @@ public sealed partial class PollWorkerService(
         CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         db.StockChecks.Add(new StockCheck
         {
@@ -243,7 +243,7 @@ public sealed partial class PollWorkerService(
     private async Task IncrementErrorCountAsync(int productId, CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
 
         var product = await db.Products.FindAsync([productId], ct);
         if (product is null) return;

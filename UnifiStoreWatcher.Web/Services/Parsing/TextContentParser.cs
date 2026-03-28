@@ -1,9 +1,9 @@
 using AngleSharp.Dom;
 using System.Diagnostics;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Telemetry;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Telemetry;
 
-namespace UniFiStoreWatcher.Web.Services.Parsing;
+namespace UnifiStoreWatcher.Web.Services.Parsing;
 
 public sealed class TextContentParser : IStockParser
 {
@@ -23,7 +23,7 @@ public sealed class TextContentParser : IStockParser
 
     public Task<StockParseResult> ParseAsync(IDocument document, CancellationToken ct = default)
     {
-        using var activity = UniFiStoreWatcherActivities.Source.StartActivity("parse.text", ActivityKind.Internal);
+        using var activity = UnifiStoreWatcherActivities.Source.StartActivity("parse.text", ActivityKind.Internal);
 
         var bodyText = document.Body?.TextContent?.ToLowerInvariant() ?? string.Empty;
 

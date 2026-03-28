@@ -4,12 +4,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Data.Entities;
-using UniFiStoreWatcher.Web.Services.Health;
-using UniFiStoreWatcher.Web.Services.Polling;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data.Entities;
+using UnifiStoreWatcher.Web.Services.Health;
+using UnifiStoreWatcher.Web.Services.Polling;
 
-namespace UniFiStoreWatcher.Tests.Polling;
+namespace UnifiStoreWatcher.Tests.Polling;
 
 [TestFixture]
 public class PollSchedulerServiceTests
@@ -20,7 +20,7 @@ public class PollSchedulerServiceTests
     private static ServiceProvider BuildProvider(string dbName)
     {
         var services = new ServiceCollection();
-        services.AddDbContext<UniFiStoreWatcherDbContext>(o =>
+        services.AddDbContext<UnifiStoreWatcherDbContext>(o =>
             o.UseInMemoryDatabase(dbName));
         return services.BuildServiceProvider();
     }
@@ -31,9 +31,9 @@ public class PollSchedulerServiceTests
         var dbName = $"PollScheduler-{Guid.NewGuid():N}";
 
         // Skip EnsureCreated() so HasData() seed products don't interfere.
-        var dbOptions = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
+        var dbOptions = new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>()
             .UseInMemoryDatabase(dbName).Options;
-        await using var db = new UniFiStoreWatcherDbContext(dbOptions);
+        await using var db = new UnifiStoreWatcherDbContext(dbOptions);
         db.Products.Add(new Product
         {
             Url = "https://store.ui.com/eu/en/products/test-a",
@@ -70,9 +70,9 @@ public class PollSchedulerServiceTests
         var dbName = $"PollScheduler-{Guid.NewGuid():N}";
 
         // Skip EnsureCreated() so HasData() seed products don't interfere.
-        var dbOptions = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
+        var dbOptions = new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>()
             .UseInMemoryDatabase(dbName).Options;
-        await using var db = new UniFiStoreWatcherDbContext(dbOptions);
+        await using var db = new UnifiStoreWatcherDbContext(dbOptions);
         db.Products.Add(new Product
         {
             Url = "https://store.ui.com/eu/en/products/inactive",
@@ -105,9 +105,9 @@ public class PollSchedulerServiceTests
         var dbName = $"PollScheduler-{Guid.NewGuid():N}";
 
         // Skip EnsureCreated() so HasData() seed products don't interfere.
-        var dbOptions = new DbContextOptionsBuilder<UniFiStoreWatcherDbContext>()
+        var dbOptions = new DbContextOptionsBuilder<UnifiStoreWatcherDbContext>()
             .UseInMemoryDatabase(dbName).Options;
-        await using var db = new UniFiStoreWatcherDbContext(dbOptions);
+        await using var db = new UnifiStoreWatcherDbContext(dbOptions);
         db.Products.Add(new Product
         {
             Url = "https://store.ui.com/eu/en/products/future",

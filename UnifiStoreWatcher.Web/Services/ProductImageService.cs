@@ -1,4 +1,4 @@
-namespace UniFiStoreWatcher.Web.Services;
+namespace UnifiStoreWatcher.Web.Services;
 
 public sealed partial class ProductImageService(
     IHttpClientFactory httpClientFactory,

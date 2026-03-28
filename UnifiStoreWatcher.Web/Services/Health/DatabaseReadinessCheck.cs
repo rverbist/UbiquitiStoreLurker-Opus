@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using UniFiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data;
 
-namespace UniFiStoreWatcher.Web.Services.Health;
+namespace UnifiStoreWatcher.Web.Services.Health;
 
 /// <summary>
 /// Verifies the database is reachable, migrations applied, and accessible.
@@ -17,7 +17,7 @@ public sealed class DatabaseReadinessCheck(IServiceScopeFactory scopeFactory) : 
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
             // AnyAsync translates to a cheap existence check that exercises the
             // full EF Core + database stack without loading any rows.
             await db.AppSettings.AnyAsync(cancellationToken);

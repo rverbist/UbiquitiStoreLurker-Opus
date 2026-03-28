@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using UniFiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Data;
 
-namespace UniFiStoreWatcher.Web.Endpoints;
+namespace UnifiStoreWatcher.Web.Endpoints;
 
 public static class NotificationEndpoints
 {
@@ -27,7 +27,7 @@ public static class NotificationEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetConfigs(UniFiStoreWatcherDbContext db, CancellationToken ct)
+    private static async Task<IResult> GetConfigs(UnifiStoreWatcherDbContext db, CancellationToken ct)
     {
         var configs = await db.NotificationConfigs
             .OrderBy(c => c.Id)
@@ -40,7 +40,7 @@ public static class NotificationEndpoints
     private static async Task<IResult> UpdateConfig(
         int id,
         UpdateNotificationConfigRequest request,
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         CancellationToken ct)
     {
         var config = await db.NotificationConfigs.FindAsync([id], ct);
@@ -55,7 +55,7 @@ public static class NotificationEndpoints
     }
 
     private static async Task<IResult> GetLogs(
-        UniFiStoreWatcherDbContext db,
+        UnifiStoreWatcherDbContext db,
         int page = 1,
         int pageSize = 20,
         CancellationToken ct = default)

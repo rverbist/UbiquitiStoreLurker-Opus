@@ -8,17 +8,17 @@ using Prometheus;
 using Serilog;
 using Serilog.Formatting.Compact;
 using System.Net;
-using UniFiStoreWatcher.Web.Data;
-using UniFiStoreWatcher.Web.Endpoints;
-using UniFiStoreWatcher.Web.Http;
-using UniFiStoreWatcher.Web.Metrics;
-using UniFiStoreWatcher.Web.Services;
-using UniFiStoreWatcher.Web.Services.Health;
-using UniFiStoreWatcher.Web.Services.Parsing;
-using UniFiStoreWatcher.Web.Services.Polling;
-using UniFiStoreWatcher.Web.Services.StateMachine;
-using UniFiStoreWatcher.Web.Services.Notifications;
-using UniFiStoreWatcher.Web.Hubs;
+using UnifiStoreWatcher.Web.Data;
+using UnifiStoreWatcher.Web.Endpoints;
+using UnifiStoreWatcher.Web.Http;
+using UnifiStoreWatcher.Web.Metrics;
+using UnifiStoreWatcher.Web.Services;
+using UnifiStoreWatcher.Web.Services.Health;
+using UnifiStoreWatcher.Web.Services.Parsing;
+using UnifiStoreWatcher.Web.Services.Polling;
+using UnifiStoreWatcher.Web.Services.StateMachine;
+using UnifiStoreWatcher.Web.Services.Notifications;
+using UnifiStoreWatcher.Web.Hubs;
 
 // Bootstrap logger (captures startup errors before full config loads)
 Log.Logger = new LoggerConfiguration()
@@ -98,7 +98,7 @@ try
     builder.Services.AddProblemDetails();
 
     // Add DbContext
-    builder.Services.AddDbContext<UniFiStoreWatcherDbContext>(options =>
+    builder.Services.AddDbContext<UnifiStoreWatcherDbContext>(options =>
     {
         var connStr = builder.Configuration.GetConnectionString("UniFiStoreWatch-db")
             ?? throw new InvalidOperationException(
@@ -111,7 +111,7 @@ try
     });
 
     builder.Services.AddHealthChecks()
-        .AddDbContextCheck<UniFiStoreWatcherDbContext>("db")
+        .AddDbContextCheck<UnifiStoreWatcherDbContext>("db")
         .AddCheck<DatabaseReadinessCheck>("database", tags: ["ready"])
         .AddCheck<PollerReadinessCheck>("poller", tags: ["ready"]);
 
@@ -216,7 +216,7 @@ try
     // Auto-migrate on startup; use EnsureCreated for InMemory (tests)
     using (var scope = app.Services.CreateScope())
     {
-        var db = scope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
         if (db.Database.IsInMemory())
             await db.Database.EnsureCreatedAsync();
         else
@@ -235,7 +235,7 @@ try
     // VAPID key generation if not present
     using (var vapidScope = app.Services.CreateScope())
     {
-        var db = vapidScope.ServiceProvider.GetRequiredService<UniFiStoreWatcherDbContext>();
+        var db = vapidScope.ServiceProvider.GetRequiredService<UnifiStoreWatcherDbContext>();
         var settings = await db.AppSettings.FindAsync(1);
         if (settings != null && string.IsNullOrEmpty(settings.VapidPublicKey))
         {
@@ -252,7 +252,7 @@ try
     app.MapNotificationEndpoints();
     app.MapPushEndpoints();
 
-    app.MapHub<UniFiStoreWatcherHub>("/UniFiStoreWatcher-hub");
+    app.MapHub<UnifiStoreWatcherHub>("/UnifiStoreWatcher-hub");
 
     // Health endpoints
     // /api/health/live — liveness: always 200 if the process is running (no checks executed)

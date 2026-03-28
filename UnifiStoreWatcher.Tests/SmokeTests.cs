@@ -1,5 +1,5 @@
 
-namespace UniFiStoreWatcher.Tests;
+namespace UnifiStoreWatcher.Tests;
 
 [TestFixture]
 public class SmokeTests
