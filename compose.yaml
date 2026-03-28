@@ -1,7 +1,7 @@
 services:
   unifistorewatcher:
-    container_name: UnifiStoreWatcher
-    image: UnifiStoreWatcher:latest
+    container_name: unifistorewatcher
+    image: unifistorewatcher:latest
     build:
       context: .
       dockerfile: Dockerfile
