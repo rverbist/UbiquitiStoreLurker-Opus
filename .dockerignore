@@ -9,6 +9,7 @@
 # Secrets and local env overrides
 .env
 .env.*
+!.env.Example
 
 # SQLite remnants
 *.db
@@ -27,3 +28,7 @@ LICENSE
 *.user
 *.suo
 .git/
+
+# Host volume directories
+data/
+logs/
