@@ -63,6 +63,27 @@ function Assert-LastExitCode {
     }
 }
 
+$dirty = git status --porcelain | Where-Object { $_ -match '\S' }
+if ($dirty) {
+    Write-Warning 'Uncommitted changes detected locally:'
+    $dirty | ForEach-Object { Write-Warning "  $_" }
+
+    $choice = Read-Host 'Discard all local changes and pull? [y/N]'
+    if ($choice -notin @('y', 'Y')) {
+        Write-Warning 'Aborted by user — local changes were NOT discarded.'
+        return
+    }
+
+    Write-Step -Message 'Discarding local changes'
+    if ($PSCmdlet.ShouldProcess('local repository', 'git reset --hard HEAD && git clean -fd')) {
+        git reset --hard HEAD
+        Assert-LastExitCode -Step 'git reset'
+        
+        git clean -fd
+        Assert-LastExitCode -Step 'git clean'
+    }
+}
+
 Write-Step -Message 'Retrieving latest version from Git'
 if ($PSCmdlet.ShouldProcess('local repository', 'git pull')) {
     git pull

@@ -91,6 +91,20 @@ function Invoke-OnRemote {
     }
 }
 
+$dirty = (Invoke-OnRemote 'git status --porcelain' -Verbose) | Where-Object { $_ -match '\S' }
+if ($dirty) {
+    Write-Warning 'Uncommitted changes detected on remote:'
+    $dirty | ForEach-Object { Write-Warning "  $_" }
+
+    $choice = Read-Host 'Discard all remote changes and pull? [y/N]'
+    if ($choice -notin @('y', 'Y')) {
+        Write-Warning 'Aborted by user — remote changes were NOT discarded.'
+        return
+    }
+
+    Invoke-OnRemote 'git reset --hard HEAD && git clean -fd' -Verbose
+}
+
 Copy-ToRemote '.env' -Verbose
 Copy-ToRemote '.env.Production' -Verbose
 
